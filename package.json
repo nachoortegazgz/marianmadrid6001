@@ -1,31 +1,13 @@
 {
   "devDependencies": {
-    "@wix/cli": "^1.1.245",
-    "@wix/eslint-plugin-cli": "^1.0.2",
-    "eslint": "^8.57.1",
-    "@typescript-eslint/parser": "^7.18.0",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "typescript": "^5.7.2",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "dependencies": {
-    "uuid": "^11.0.5"
+    "@wix/cli": "^1.0.0",
+    "@wix/eslint-plugin-cli": "^1.0.0",
+    "eslint": "^8.25.0",
+    "react": "16.14.0"
   },
   "scripts": {
     "postinstall": "wix sync-types",
     "dev": "wix dev",
-    "build": "wix build",
-    "lint": "eslint . --ext .js,.ts",
-    "lint:fix": "eslint . --ext .js,.ts --fix",
-    "test": "echo \"Tests pendientes de implementar\" && exit 0",
-    "typecheck": "tsc --noEmit"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
-  },
-  "overrides": {
-    "semver": "^7.6.3"
+    "lint": "eslint ."
   }
 }
