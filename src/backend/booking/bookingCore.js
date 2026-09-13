@@ -40,12 +40,9 @@ import {
   _hashKey,
 } from "public/mmUtils";
 import { hashSHA256 } from "backend/securityEngine";
+import { logger } from "backend/logger";
 
-export const logger = {
-  error: (msg, data) => console.error("[bookingCore] ERROR:", msg, data),
-  warn: (msg, data) => console.warn("[bookingCore] WARN:", msg, data),
-  info: (msg, data) => console.log("[bookingCore] INFO:", msg, data),
-};
+export { logger };
 const log = logger;
 
 export const ERROR_CODES = Object.freeze({
@@ -175,6 +172,7 @@ export async function _initTransaction(pairToken, payloadHashOrTraceId, traceId 
   try {
     const transactionRecord = {
       _id: transactionId,
+      transactionId,
       pairToken,
       traceId: activeTraceId,
       payloadHash,

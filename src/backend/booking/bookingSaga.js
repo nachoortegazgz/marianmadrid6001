@@ -287,8 +287,8 @@ export async function executeBookingSaga(unsafePayload) {
     let f2LocalStart = null;
     let f2LocalEnd = null;
     if (isDual) {
-      const secondaryCandidate = serviceData.linkedPhases || metaCita?.secondaryServiceId || null;
-      phaseTwoServiceId = await _resolveServiceIdInternal(secondaryCandidate);
+      const phase2Candidate = serviceData.linkedPhases || metaCita?.phase2ServiceId || metaCita?.secondaryServiceId || null;
+      phaseTwoServiceId = await _resolveServiceIdInternal(phase2Candidate);
       if (!phaseTwoServiceId || STAFF?.IDS?.includes(phaseTwoServiceId)) {
         return { status: "ERROR", error: { code: "SERVICE_NOT_FOUND", message: "Identificador de la segunda fase no valido." } };
       }
@@ -665,7 +665,7 @@ export async function executeBookingSaga(unsafePayload) {
       resourceFilterId: rawFilter || null,
       resourceFilterName: isAnyResourceRequested ? "PROFESIONAL SEGUN HORARIO" : finalResourceName,
       primaryServiceId: phaseOneServiceId,
-      secondaryServiceId: phaseTwoServiceId || null,
+      phase2ServiceId: phaseTwoServiceId || null,
       traceId,
       esCombinado: isDual,
       dateYmd: madridDateYMD,
