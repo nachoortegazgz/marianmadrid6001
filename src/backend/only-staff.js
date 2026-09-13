@@ -21,7 +21,7 @@
  import { checkStaffCollaboratorAccess } from "backend/security.web";
  let bridge = null;
  let isAuthorized = false;
- $w.onReady(async function () {
+ $w.onReady(async () => {
    const traceId = makeTraceId("only-staff");
    const accessRes = await withTimeout(
      checkStaffCollaboratorAccess({ traceId }),
@@ -33,10 +33,10 @@
      const accessDeniedEl = $w("#textAccessDenied");
      if (accessDeniedEl && "text" in accessDeniedEl) {
        accessDeniedEl.text = "Acceso restringido. Solo personal autorizado.";
-       if (typeof accessDeniedEl.show === "function") accessDeniedEl.show();
+       if (typeof accessDeniedEl.show === "function") {accessDeniedEl.show();}
      }
      const widgetEl = $w("#htmlOnlyStaffPanel");
-     if (widgetEl && typeof widgetEl.hide === "function") widgetEl.hide();
+     if (widgetEl && typeof widgetEl.hide === "function") {widgetEl.hide();}
      return;
    }
    isAuthorized = true;
@@ -50,12 +50,10 @@
      traceId,
      handshakeTimeoutMs: UI.HANDSHAKE_TIMEOUT_MS,
      contextTimeoutMs: UI.CONTEXT_TIMEOUT_MS,
-     onContextReady: async () => {
-       return {
+     onContextReady: async () => ({
          isAuthorized: true,
          panelType: "TPV",
-       };
-     },
+       }),
      onWidgetMessage: async (message, reply) => {
        const type = String(message?.type || "").toUpperCase();
        const payload = message?.payload || {};

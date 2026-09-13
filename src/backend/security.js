@@ -440,7 +440,7 @@ export async function isAdmin(
         const member =
             await _getCurrentMember();
 
-        if (!member) return false;
+        if (!member) {return false;}
 
         const memberEmail =
             _safeEmail(
@@ -489,7 +489,7 @@ export async function isCajero(
         const member =
             await _getCurrentMember();
 
-        if (!member) return false;
+        if (!member) {return false;}
 
         const memberEmail =
             _safeEmail(
@@ -551,7 +551,7 @@ export async function isStaffCollaborator(
         const member =
             await _getCurrentMember();
 
-        if (!member) return false;
+        if (!member) {return false;}
 
         if (
             await isAdmin(activeTraceId)

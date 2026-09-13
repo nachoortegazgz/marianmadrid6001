@@ -24,7 +24,7 @@ class Logger {
     console.log(JSON.stringify({ ...entry, data: sanitizedData }));
   }
   private sanitize(data: any): any {
-    if (!data) return data;
+    if (!data) {return data;}
     const sensitive = ['password', 'token', 'secret', 'creditCard'];
     const cloned = JSON.parse(JSON.stringify(data));
     for (const key of Object.keys(cloned)) {

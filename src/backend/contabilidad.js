@@ -91,7 +91,7 @@ return await wixData.get(COLLECTIONS.ASIENTOS_CONTABLES, id, { suppressAuth: tru
 }
 async function _insertLineIfMissing(line) {
 const existing = await wixData.get(COLLECTIONS.LINEAS_ASIENTO_CONTABLE, line._id, { suppressAuth: true, consistentRead: true }).catch(() => null);
-if (existing) return { idempotent: true };
+if (existing) {return { idempotent: true };}
 await wixData.insert(COLLECTIONS.LINEAS_ASIENTO_CONTABLE, line, { suppressAuth: true });
 return { idempotent: false };
 }
@@ -162,15 +162,15 @@ throw new Error("ACCOUNTING_PROJECTION_MISSING_VAT_ACCOUNT");
 if (!isRefund) {
 lines.push(_asAccountingLine(base, 1, map.codigoCuentaDebePredeterminada, map.nombreCuentaDebePredeterminada, total, 0, null));
 lines.push(_asAccountingLine(base, 2, map.codigoCuentaHaberPredeterminada, map.nombreCuentaHaberPredeterminada, 0, net, baseTax));
-if (requiresVatLine) lines.push(_asAccountingLine(base, 3, vatCode, vatName, 0, vat, baseTax));
+if (requiresVatLine) {lines.push(_asAccountingLine(base, 3, vatCode, vatName, 0, vat, baseTax));}
 } else {
 lines.push(_asAccountingLine(base, 1, map.codigoCuentaHaberPredeterminada, map.nombreCuentaHaberPredeterminada, net, 0, baseTax));
-if (requiresVatLine) lines.push(_asAccountingLine(base, 2, vatCode, vatName, vat, 0, baseTax));
+if (requiresVatLine) {lines.push(_asAccountingLine(base, 2, vatCode, vatName, vat, 0, baseTax));}
 lines.push(_asAccountingLine(base, requiresVatLine ? 3 : 2, map.codigoCuentaDebePredeterminada, map.nombreCuentaDebePredeterminada, 0, total, null));
 }
 const totalDebe = _roundMoney(lines.reduce((sum, line) => sum + Number(line.debitAmount || 0), 0));
 const totalHaber = _roundMoney(lines.reduce((sum, line) => sum + Number(line.creditAmount || 0), 0));
-if (Math.abs(totalDebe - totalHaber) > MONEY_EPSILON) throw new Error("ACCOUNTING_PROJECTION_UNBALANCED");
+if (Math.abs(totalDebe - totalHaber) > MONEY_EPSILON) {throw new Error("ACCOUNTING_PROJECTION_UNBALANCED");}
 return { lines, totalDebe, totalHaber };
 }
 export async function projectLedgerMovementToAccounting(movimiento) {
@@ -186,13 +186,13 @@ return { status: "SKIPPED", reason: "ACCOUNTING_DISABLED" };
 }
 const base = _buildBase(movimiento);
 const existing = await _getExisting(base.journalEntryId);
-if (existing) return { status: "SUCCESS", idempotent: true, idAsiento: base.journalEntryId };
+if (existing) {return { status: "SUCCESS", idempotent: true, idAsiento: base.journalEntryId };}
 const map = await _findAccountMap(base.categoriaOperacion);
-if (!_isApprovedMap(map)) return { status: "SKIPPED", reason: "NO_APPROVED_ACCOUNT_MAP" };
+if (!_isApprovedMap(map)) {return { status: "SKIPPED", reason: "NO_APPROVED_ACCOUNT_MAP" };}
 const projected = _buildLines(base, movimiento, map);
-for (const line of projected.lines) await _insertLineIfMissing(line);
+for (const line of projected.lines) {await _insertLineIfMissing(line);}
 const fiscalKey = await getSecret(SECRETS.FISCAL_KEY);
-if (!fiscalKey) throw new Error("ACCOUNTING_PROJECTION_SIGNING_KEY_MISSING");
+if (!fiscalKey) {throw new Error("ACCOUNTING_PROJECTION_SIGNING_KEY_MISSING");}
 const headerPayload = [
 base.journalEntryId,
 base.sequenceNumber,

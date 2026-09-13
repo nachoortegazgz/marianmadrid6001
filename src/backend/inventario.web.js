@@ -120,14 +120,14 @@
  // ============================================================================
  export async function recordOnlineInventoryOrderInternal(order, traceId) {
    const orderId = _safeTrim(order?._id || order?.id || "");
-   if (!orderId) return { status: "SKIPPED", reason: "NO_ORDER_ID" };
+   if (!orderId) {return { status: "SKIPPED", reason: "NO_ORDER_ID" };}
    const lineItems = Array.isArray(order.lineItems) ? order.lineItems : [];
-   if (lineItems.length === 0) return { status: "SKIPPED", reason: "NO_LINE_ITEMS" };
+   if (lineItems.length === 0) {return { status: "SKIPPED", reason: "NO_LINE_ITEMS" };}
    let recorded = 0;
    for (const item of lineItems) {
      const sku = _safeTrim(item.sku || "");
      const quantity = Number(item.quantity || 1);
-     if (!sku || quantity <= 0) continue;
+     if (!sku || quantity <= 0) {continue;}
      const productRes = await wixData
        .query(INVENTARIO_COL)
        .eq("sku", sku)
@@ -135,7 +135,7 @@
        .find({ suppressAuth: true })
        .catch(() => null);
      const product = productRes?.items?.[0];
-     if (!product) continue;
+     if (!product) {continue;}
      const currentStock = Number(product.stockExpected ?? 0);
      const newStock = Math.max(0, currentStock - quantity);
      const movementToken = _generateMovementToken();
@@ -192,17 +192,17 @@
  export async function recordOnlineInventoryRefundInternal(order, refundObj, restockInfo, traceId) {
    const orderId = _safeTrim(order?._id || order?.id || "");
    const refundId = _safeTrim(refundObj?._id || refundObj?.id || "");
-   if (!orderId || !refundId) return { status: "SKIPPED", reason: "NO_ORDER_OR_REFUND_ID" };
+   if (!orderId || !refundId) {return { status: "SKIPPED", reason: "NO_ORDER_OR_REFUND_ID" };}
    const hasRestock = restockInfo && Object.keys(restockInfo).length > 0;
-   if (!hasRestock) return { status: "SKIPPED", reason: "NO_CONFIRMED_RESTOCK" };
+   if (!hasRestock) {return { status: "SKIPPED", reason: "NO_CONFIRMED_RESTOCK" };}
    let recorded = 0;
    const lineItems = Array.isArray(order.lineItems) ? order.lineItems : [];
    for (const item of lineItems) {
      const sku = _safeTrim(item.sku || "");
      const quantity = Number(item.quantity || 1);
-     if (!sku || quantity <= 0) continue;
+     if (!sku || quantity <= 0) {continue;}
      const restockQty = Number(restockInfo?.[sku] || 0);
-     if (restockQty <= 0) continue;
+     if (restockQty <= 0) {continue;}
      const productRes = await wixData
        .query(INVENTARIO_COL)
        .eq("sku", sku)
@@ -210,7 +210,7 @@
        .find({ suppressAuth: true })
        .catch(() => null);
      const product = productRes?.items?.[0];
-     if (!product) continue;
+     if (!product) {continue;}
      const currentStock = Number(product.stockExpected ?? 0);
      const newStock = currentStock + restockQty;
      const movementToken = _generateMovementToken();

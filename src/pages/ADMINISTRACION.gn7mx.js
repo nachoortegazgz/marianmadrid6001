@@ -44,10 +44,10 @@
    DOCUMENT_EMAIL: ({ payload }) => emailManagerPackageVersion(payload),
    AI_CHAT: ({ payload, traceId }) => askMarianAssistant({ ...payload, traceId }),
  };
- $w.onReady(async function () {
+ $w.onReady(async () => {
    const traceId = makeTraceId("admin-page");
    const widget = $w("#htmlAdmin") || $w("#htmlAdministracion");
-   if (!widget || typeof widget.postMessage !== "function") return;
+   if (!widget || typeof widget.postMessage !== "function") {return;}
    const member = await wixMembersFrontend.currentMember.getMember().catch(() => null);
    if (!member) {
      await wixMembersFrontend.authentication.promptLogin();

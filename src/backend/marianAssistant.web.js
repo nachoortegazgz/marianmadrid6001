@@ -29,7 +29,7 @@ export const askMarianAssistant = webMethod(Permissions.SiteMember, async (paylo
     try {
         await requireMarianManager(traceId);
         const cleanMessage = _safeTrim(payload.message).slice(0, MAX_MESSAGE_CHARS);
-        if (!cleanMessage) throw new Error("Message required");
+        if (!cleanMessage) {throw new Error("Message required");}
 
         const apiKey = await getSecret(SECRETS.MARIAN_ASSISTANT_OPENAI_KEY).catch(() => null);
         if (!apiKey) {
@@ -91,9 +91,9 @@ export const askMarianAssistant = webMethod(Permissions.SiteMember, async (paylo
         const assistantMessage = data?.choices?.[0]?.message?.content || "No se pudo generar una respuesta.";
         const actions = [];
         const lowerMsg = cleanMessage.toLowerCase();
-        if (lowerMsg.includes("caja")) actions.push("REFRESH_CASHIER");
-        if (lowerMsg.includes("inventario")) actions.push("REFRESH_INVENTORY");
-        if (lowerMsg.includes("fiscal") || lowerMsg.includes("iva")) actions.push("OPEN_FISCAL");
+        if (lowerMsg.includes("caja")) {actions.push("REFRESH_CASHIER");}
+        if (lowerMsg.includes("inventario")) {actions.push("REFRESH_INVENTORY");}
+        if (lowerMsg.includes("fiscal") || lowerMsg.includes("iva")) {actions.push("OPEN_FISCAL");}
 
         return {
             status: "SUCCESS",

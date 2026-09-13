@@ -160,7 +160,7 @@ function buildBookingUrl(service, payload) {
   return `${base}?${query.join("&")}`;
 }
 
-$w.onReady(async function () {
+$w.onReady(async () => {
   const traceId = makeTraceId("servicio");
   const widget = $w("#htmlWidgetCustomService");
 

@@ -38,7 +38,7 @@ qrUrl: generateVerifactuQrUrl(movimiento),
 }
 export function buildVerifactuReceiptHtml(movimiento = {}) {
 const data = extractVerifactuData(movimiento);
-if (!data.qrUrl) return "";
+if (!data.qrUrl) {return "";}
 return `
 <div style="font-family: Arial, sans-serif; padding: 16px; border: 1px solid #ccc; border-radius: 8px;">
 <h3 style="margin: 0 0 12px;">Factura Simplificada</h3>

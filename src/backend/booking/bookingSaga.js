@@ -75,9 +75,9 @@ const HEARTBEAT_MS = CONCURRENCY?.HEARTBEAT_MS || 15000;
 const LOCK_TTL_MS = Number(CONCURRENCY?.MUTEX_TTL_MS) || 300000;
 
 export function _normalizePersistedMeta(meta) {
-  if (!meta) return {};
-  if (typeof meta === "object") return meta;
-  if (typeof meta !== "string") return {};
+  if (!meta) {return {};}
+  if (typeof meta === "object") {return meta;}
+  if (typeof meta !== "string") {return {};}
   try {
     const parsed = JSON.parse(meta);
     return parsed && typeof parsed === "object" ? parsed : {};
@@ -230,7 +230,7 @@ export async function executeBookingSaga(unsafePayload) {
       throw createBookingError("INVALID_EMAIL", "Correo electronico no valido.");
     }
     const { slotF1, slotF2, cliente, metaCita } = unsafePayload;
-    if (!slotF1) throw createBookingError("INVALID_PAYLOAD", "La primera fase (slotF1) es obligatoria.");
+    if (!slotF1) {throw createBookingError("INVALID_PAYLOAD", "La primera fase (slotF1) es obligatoria.");}
     const slotResourceId = slotF1.resourceId || null;
     const rawResourceId = metaCita.resourceId || null;
     const primaryServiceIdRaw = _safeTrim(
@@ -244,7 +244,7 @@ export async function executeBookingSaga(unsafePayload) {
       return { status: "ERROR", error: { code: "SERVICE_NOT_FOUND", message: "Identificador del servicio principal no valido." } };
     }
     const f1LocalStart = _normalizeLocalIsoStr(slotF1.localStartDate);
-    if (!f1LocalStart) throw createBookingError("INVALID_DATES", "La hora de inicio de la Fase 1 es obligatoria.");
+    if (!f1LocalStart) {throw createBookingError("INVALID_DATES", "La hora de inicio de la Fase 1 es obligatoria.");}
     const isDualRequested = !!slotF2;
     const rawFilter = metaCita?.resourceFilterId ?? unsafePayload?.resourceFilterId ?? null;
     const isAnyResourceRequested = !rawFilter ||
@@ -275,7 +275,7 @@ export async function executeBookingSaga(unsafePayload) {
     const exposureMs = (Number(serviceData.exposureDuration) || 0) * 60 * 1000;
     const phase2DurationMs = (Number(serviceData.phase2Duration) || 0) * 60 * 1000;
     const f1StartUtc = getUtcDateFromMadridLocal(f1LocalStart);
-    if (!f1StartUtc) throw createBookingError("INVALID_DATES", "Error al convertir la fecha local de la Fase 1.");
+    if (!f1StartUtc) {throw createBookingError("INVALID_DATES", "Error al convertir la fecha local de la Fase 1.");}
     const f1LocalEndSSOT = _normalizeLocalIsoStr(slotF1.localEndDate) ||
       getMadridLocalStringNoZ(new Date(f1StartUtc.getTime() + phase1DurationMs));
     const isDual = !!(
@@ -372,19 +372,19 @@ export async function executeBookingSaga(unsafePayload) {
     }] : [])];
     const lockResourceKey = finalResourceId ? String(finalResourceId) : "ANY_RESOURCE";
     // [S-05] Usa _buildLockKeys
-    lockKeys = _buildLockKeys(phases, lockResourceKey);
-    lockOwnerId = stableToken;
-    for (const key of lockKeys) {
+    const localLockKeys = _buildLockKeys(phases, lockResourceKey);
+    const lockOwnerId = stableToken;
+    for (const key of localLockKeys) {
       const lockResult = await _lockSlotKeyOrFail(key, lockOwnerId, LOCK_TTL_MS);
       if (!lockResult?.ok) {
-        await _bestEffortUnlockAll(lockKeys, lockOwnerId);
-        lockKeys = [];
+        await _bestEffortUnlockAll(localLockKeys, lockOwnerId);
         return {
           status: "ERROR",
           error: { code: "TOKEN_BUSY", message: lockResult?.message || "El horario esta ocupado." },
         };
       }
     }
+    let lockKeys = localLockKeys;
     heartbeatInterval = setInterval(() => {
       lockKeys.forEach((key) => _renewLock(key, lockOwnerId, LOCK_TTL_MS).catch(() => {}));
     }, HEARTBEAT_MS);
@@ -522,15 +522,13 @@ export async function executeBookingSaga(unsafePayload) {
       }
       if (!p.pristineSlot.scheduleId) {
         const resourceObj2 = await findStaff(finalResourceId);
-        if (resourceObj2?.scheduleId) p.pristineSlot.scheduleId = resourceObj2.scheduleId;
+        if (resourceObj2?.scheduleId) {p.pristineSlot.scheduleId = resourceObj2.scheduleId;}
       }
     }
     sagaSteps = [
       new SagaStep(
         "LockSlots",
-        async () => {
-          return { ok: true };
-        },
+        async () => ({ ok: true }),
         async () => {
           if (heartbeatInterval) {
             clearInterval(heartbeatInterval);
@@ -546,7 +544,7 @@ export async function executeBookingSaga(unsafePayload) {
         async () => {
           const createF1 = async () => {
             const p = phases.find((ph) => ph.key === "F1");
-            if (!p) return;
+            if (!p) {return;}
             const res = await _executeWithRetry(
               () => withTimeout(
                 createBookingElevated({
@@ -564,12 +562,12 @@ export async function executeBookingSaga(unsafePayload) {
             );
             const bId = res?.data?.bookingId || res?.booking?._id || res?._id;
             const rev = Number(res?.data?.revision || res?.booking?.revision || res?.revision || 1);
-            if (!bId) throw new Error("Falta bookingId para la Fase 1");
+            if (!bId) {throw new Error("Falta bookingId para la Fase 1");}
             createdBookings.push({ bookingId: bId, revision: rev, phase: p });
           };
           const createF2 = async () => {
             const p = phases.find((ph) => ph.key === "F2");
-            if (!p) return;
+            if (!p) {return;}
             await new Promise((r) => setTimeout(r, 400 + Math.floor(Math.random() * 600)));
             const res = await _executeWithRetry(
               () => withTimeout(
@@ -588,7 +586,7 @@ export async function executeBookingSaga(unsafePayload) {
             );
             const bId = res?.data?.bookingId || res?.booking?._id || res?._id;
             const rev = Number(res?.data?.revision || res?.booking?.revision || res?.revision || 1);
-            if (!bId) throw new Error("Falta bookingId para la Fase 2");
+            if (!bId) {throw new Error("Falta bookingId para la Fase 2");}
             createdBookings.push({ bookingId: bId, revision: rev, phase: p });
           };
           if (isDual) {
@@ -623,7 +621,7 @@ export async function executeBookingSaga(unsafePayload) {
             500
           );
           const checkoutId = _extractCheckoutId(checkoutSession);
-          if (!checkoutId) throw new Error("CHECKOUT_ID_MISSING");
+          if (!checkoutId) {throw new Error("CHECKOUT_ID_MISSING");}
           const urlRes = await _executeWithRetry(
             () => withTimeout(getCheckoutUrlElevated(checkoutId), API_TIMEOUT_MS, "getCheckoutUrl"),
             3,
@@ -680,7 +678,7 @@ export async function executeBookingSaga(unsafePayload) {
       const phase = b.phase;
       const startUtc = getUtcDateFromMadridLocal(phase.localStart);
       const endUtc = getUtcDateFromMadridLocal(phase.localEnd);
-      if (!startUtc || !endUtc) throw createBookingError("INVALID_DATES", `Fechas no validas para guardar (${phase.key})`);
+      if (!startUtc || !endUtc) {throw createBookingError("INVALID_DATES", `Fechas no validas para guardar (${phase.key})`);}
       const persistedServiceId = phase.key === "F2" ? phaseTwoServiceId : phaseOneServiceId;
       return _persistBooking({
         bookingId: b.bookingId,

@@ -107,7 +107,7 @@ async function handleNavigation(payload) {
     return false;
 }
 
-$w.onReady(async function () {
+$w.onReady(async () => {
     const traceId = makeTraceId("calendario");
     const params = parseUrlParams();
     const resolved = resolveServiceFromParams(params);

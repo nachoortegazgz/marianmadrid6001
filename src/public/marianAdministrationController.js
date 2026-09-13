@@ -81,7 +81,7 @@ function _readDocumentId(value) {
 function _readPeriodParams(payload) {
     const year = _readYear(payload?.year);
     const quarter = _readQuarter(payload?.quarter);
-    if (!year || !quarter) return null;
+    if (!year || !quarter) {return null;}
     return { year, quarter };
 }
 
@@ -226,7 +226,7 @@ const ADMIN_ACTION_DISPATCH = Object.freeze({
 
 export async function initMarianAdministration(widget, slugUrl = "administracion") {
     const traceId = makeTraceId("marian-admin");
-    if (!widget || typeof widget.postMessage !== "function") return;
+    if (!widget || typeof widget.postMessage !== "function") {return;}
 
     const member = await wixMembersFrontend.currentMember.getMember().catch(() => null);
     if (!member) {

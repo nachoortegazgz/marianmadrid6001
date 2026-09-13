@@ -19,7 +19,7 @@ export class BookingEngine {
     // 2. Verificar Idempotencia (si existe clave)
     if (payload.idempotencyKey) {
       const existing = await this.repo.findByIdempotencyKey(payload.idempotencyKey);
-      if (existing) return existing;
+      if (existing) {return existing;}
     }
     // 3. Calcular Precio Real en Backend (Nunca confiar en el cliente)
     const calculatedPrice = await this.calculatePrice(payload.serviceId, payload.slot);

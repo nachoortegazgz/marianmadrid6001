@@ -624,12 +624,10 @@ export function _stableSerialize(value) {
 
     return `{${Object.keys(value)
     .sort()
-    .map((key) => {
-      return (
+    .map((key) => (
         `${JSON.stringify(key)}:` +
         _stableSerialize(value[key])
-      );
-    })
+      ))
     .join(",")}}`;
 }
 
