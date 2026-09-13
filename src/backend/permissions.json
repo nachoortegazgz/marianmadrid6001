@@ -1,162 +1,49 @@
 {
   "web-methods": {
-    "requireAdmin": {
-      "*": {
-        "siteOwner": {
-          "invoke": true
-        },
-        "siteMember": {
-          "invoke": false
-        },
-        "anonymous": {
-          "invoke": false
-        }
-      }
-    },
-    "requireCajero": {
-      "*": {
-        "siteOwner": {
-          "invoke": true
-        },
-        "siteMember": {
-          "invoke": false
-        },
-        "anonymous": {
-          "invoke": false
-        }
-      }
-    },
-    "requireStaff": {
-      "*": {
-        "siteOwner": {
-          "invoke": true
-        },
-        "siteMember": {
-          "invoke": true
-        },
-        "anonymous": {
-          "invoke": false
-        }
-      }
-    },
-    "public": {
-      "*": {
-        "siteOwner": {
-          "invoke": true
-        },
-        "siteMember": {
-          "invoke": true
-        },
-        "anonymous": {
-          "invoke": true
-        }
-      }
-    }
+    "requireAdmin": { "*": { "siteOwner": { "invoke": true }, "siteMember": { "invoke": false }, "anonymous": { "invoke": false } } },
+    "requireCajero": { "*": { "siteOwner": { "invoke": true }, "siteMember": { "invoke": false }, "anonymous": { "invoke": false } } },
+    "requireStaff": { "*": { "siteOwner": { "invoke": true }, "siteMember": { "invoke": true }, "anonymous": { "invoke": false } } },
+    "public": { "*": { "siteOwner": { "invoke": true }, "siteMember": { "invoke": true }, "anonymous": { "invoke": true } } }
   },
   "collections": {
-    "AUDITORIA_HUILLAS": {
-      "read": "siteOwner",
-      "write": "siteOwner",
-      "create": "siteOwner",
-      "delete": "siteOwner"
-    },
-    "CAJA_ACTUAL": {
-      "read": "siteOwner",
-      "write": "siteOwner",
-      "create": "siteOwner",
-      "delete": "never"
-    },
-    "MOVIMIENTOS_CAJA": {
-      "read": "siteOwner",
-      "write": "siteOwner",
-      "create": "siteOwner",
-      "delete": "never"
-    },
-    "LIBRO_IVA_EXPEDIDAS": {
-      "read": "siteOwner",
-      "write": "siteOwner",
-      "create": "siteOwner",
-      "delete": "never"
-    },
-    "LIBRO_IVA_RECIBIDAS": {
-      "read": "siteOwner",
-      "write": "siteOwner",
-      "create": "siteOwner",
-      "delete": "never"
-    },
-    "DOCUMENTOS_FISCALES": {
-      "read": "siteOwner",
-      "write": "siteOwner",
-      "create": "siteOwner",
-      "delete": "never"
-    },
-    "CIERRES_Z": {
-      "read": "siteOwner",
-      "write": "siteOwner",
-      "create": "siteOwner",
-      "delete": "never"
-    },
-    "M365_SyncQueue": {
-      "read": "siteOwner",
-      "write": "siteOwner",
-      "create": "siteOwner",
-      "delete": "siteOwner"
-    },
-    "MM_ProcessedEvents": {
-      "read": "siteOwner",
-      "write": "siteOwner",
-      "create": "siteOwner",
-      "delete": "siteOwner"
-    },
-    "COMPENSACIONES_PENDING": {
-      "read": "siteOwner",
-      "write": "siteOwner",
-      "create": "siteOwner",
-      "delete": "siteOwner"
-    },
-    "RESERVAS_DUALES_CACHE": {
-      "read": "siteOwner",
-      "write": "siteOwner",
-      "create": "siteOwner",
-      "delete": "siteOwner"
-    },
-    "STAFF": {
-      "read": "siteMember",
-      "write": "siteOwner",
-      "create": "siteOwner",
-      "delete": "siteOwner"
-    },
-    "CLIENTES": {
-      "read": "siteMember",
-      "write": "siteOwner",
-      "create": "anyone",
-      "delete": "never"
-    },
-    "SERVICIOS": {
-      "read": "anyone",
-      "write": "siteOwner",
-      "create": "siteOwner",
-      "delete": "siteOwner"
-    }
+    "ServiciosCatalogo": { "read": "anyone", "write": "siteOwner", "create": "siteOwner", "delete": "siteOwner" },
+    "MapaStaff": { "read": "siteMember", "write": "siteOwner", "create": "siteOwner", "delete": "siteOwner" },
+    "CitasF2": { "read": "siteMember", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "AvailabilityDaysCache": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "siteOwner" },
+    "DualSlotCache": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "siteOwner" },
+    "BookingTransactions": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "BookingsServiceSyncQueue": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "siteOwner" },
+    "CompensacionesPendientes": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "siteOwner" },
+    "M365GraphSyncQueue": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "siteOwner" },
+    "InventarioStockVenta": { "read": "siteMember", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "InventarioStockVentaCierre": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "MovimientosInventario": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "ProveedoresLista": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "siteOwner" },
+    "CajaActual": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "MovimientosCaja": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "ControlParcialX": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "HistoricoCierresZ": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "SecuenciaTickets": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "ConfiguracionFiscal": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "LibroIVAFacturasExpedidas": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "LibroIVAFacturasRecibidas": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "PlanCuentasContables": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "AsientosContables": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "LineasAsientoContable": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "LibroMayorContableSaldos": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "EventosSistemaFacturacion": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "MmAuditLog": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "RegistrosHorariosStaff": { "read": "siteMember", "write": "siteOwner", "create": "siteOwner", "delete": "never" },
+    "SlotLocks": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "siteOwner" },
+    "RateLimitBlocks": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "siteOwner" },
+    "AlertasOperativas": { "read": "siteOwner", "write": "siteOwner", "create": "siteOwner", "delete": "siteOwner" }
   },
   "_comments": {
-    "description": "Configuracion de permisos por minimo privilegio",
+    "description": "Configuracion de permisos por minimo privilegio con IDs canonicos de internalConfig.js",
     "roles": {
       "siteOwner": "Administrador completo del sitio",
-      "siteMember": "Miembro registrado (staff, gestores)",
+      "siteMember": "Miembro registrado",
       "anonymous": "Usuario no autenticado"
-    },
-    "webMethods": {
-      "requireAdmin": "Solo administradores (operaciones criticas)",
-      "requireCajero": "Solo personal de caja autorizado",
-      "requireStaff": "Personal registrado (admin + miembros)",
-      "public": "Acceso publico general"
-    },
-    "collections_sensitive": "Colecciones fiscales, caja y auditoria restringidas solo a siteOwner",
-    "migrations_needed": [
-      "Actualizar imports en backend para usar requireAdmin/requireCajero",
-      "Revisar cada webMethod y asignar etiqueta apropiada",
-      "Verificar que ninguna coleccion sensible sea publica"
-    ]
+    }
   }
 }

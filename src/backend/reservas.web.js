@@ -65,10 +65,10 @@ const serviceCatalogRAM = new Map();
 const staffDisplayCache = new Map();
 
 function _cacheSetBounded(mapInstance, key, value, maxSize = CACHE_MAX_SIZE) {
-  if (!mapInstance || !key) {return;}
+  if (!mapInstance || !key) return;
   if (mapInstance.size >= maxSize && !mapInstance.has(key)) {
     const oldestKey = mapInstance.keys().next().value;
-    if (oldestKey) {mapInstance.delete(oldestKey);}
+    if (oldestKey) mapInstance.delete(oldestKey);
   }
   mapInstance.set(key, value);
 }
@@ -76,22 +76,22 @@ function _cacheSetBounded(mapInstance, key, value, maxSize = CACHE_MAX_SIZE) {
 export function purgeExpiredRamCaches() {
   const now = Date.now();
   for (const [k, v] of availabilityCache) {
-    if (now - (v.timestamp || 0) > SLOTS_CACHE_TTL_MS) {availabilityCache.delete(k);}
+    if (now - (v.timestamp || 0) > SLOTS_CACHE_TTL_MS) availabilityCache.delete(k);
   }
   for (const [k, v] of serviceCatalogRAM) {
-    if (now - (v.timestamp || 0) > SERVICE_CACHE_TTL_MS) {serviceCatalogRAM.delete(k);}
+    if (now - (v.timestamp || 0) > SERVICE_CACHE_TTL_MS) serviceCatalogRAM.delete(k);
   }
   for (const [k, v] of staffDisplayCache) {
-    if (now - (v.ts || 0) > STAFF_CACHE_TTL_MS) {staffDisplayCache.delete(k);}
+    if (now - (v.ts || 0) > STAFF_CACHE_TTL_MS) staffDisplayCache.delete(k);
   }
   inflightRequests.clear();
 }
 
 async function _getStaffDisplayName(resourceId) {
   const resourceIdClean = _safeTrim(resourceId);
-  if (!resourceIdClean || !_looksLikeGuid(resourceIdClean)) {return "";}
+  if (!resourceIdClean || !_looksLikeGuid(resourceIdClean)) return "";
   const cached = staffDisplayCache.get(resourceIdClean);
-  if (cached && Date.now() - cached.ts < STAFF_CACHE_TTL_MS) {return cached.name || "";}
+  if (cached && Date.now() - cached.ts < STAFF_CACHE_TTL_MS) return cached.name || "";
   const staff = await findStaff(resourceIdClean).catch(() => null);
   const name = _safeTrim(staff?.displayName || staff?.displayName || "");
   _cacheSetBounded(staffDisplayCache, resourceIdClean, { name, ts: Date.now() }, CACHE_MAX_SIZE);
@@ -111,7 +111,7 @@ function _rateLimitOrThrow(surface, key, traceId) {
 function _isValidMadridYmd(value) {
   const ymd = _safeTrim(value);
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
-  if (!match) {return false;}
+  if (!match) return false;
   const year = Number(match[1]);
   const month = Number(match[2]);
   const day = Number(match[3]);
@@ -122,7 +122,7 @@ function _isValidMadridYmd(value) {
 }
 
 function _addDaysYMDLocal(ymd, days) {
-  if (!_isValidMadridYmd(ymd)) {return "";}
+  if (!_isValidMadridYmd(ymd)) return "";
   const parts = String(ymd).split("-").map(Number);
   const dt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2], 12, 0, 0));
   dt.setUTCDate(dt.getUTCDate() + Number(days || 0));
@@ -130,35 +130,35 @@ function _addDaysYMDLocal(ymd, days) {
 }
 
 function _filterDaysByLimit(daysArray) {
-  if (!Array.isArray(daysArray) || daysArray.length === 0) {return [];}
+  if (!Array.isArray(daysArray) || daysArray.length === 0) return [];
   const tz = SDK_CONFIG?.TZ || "Europe/Madrid";
   const now = new Date();
   const todayStr = now.toLocaleDateString("sv-SE", { timeZone: tz });
   const tomorrowStr = _addDaysYMDLocal(todayStr, 1);
   const maxDateStr = _addDaysYMDLocal(todayStr, DIAS_LIMITE);
-  if (!tomorrowStr || !maxDateStr) {return [];}
+  if (!tomorrowStr || !maxDateStr) return [];
   return daysArray.filter((date) => date >= tomorrowStr && date <= maxDateStr);
 }
 
 function _normalizeResourceIds(resourceId, traceId) {
-  if (!resourceId) {return [];}
+  if (!resourceId) return [];
   const normalized = _safeTrim(resourceId);
-  if (!normalized || ["all", "any"].includes(normalized.toLowerCase())) {return [];}
-  if (_looksLikeGuid(normalized)) {return [normalized];}
+  if (!normalized || ["all", "any"].includes(normalized.toLowerCase())) return [];
+  if (_looksLikeGuid(normalized)) return [normalized];
   log.warn("_normalizeResourceIds: non-guid identifier treated as ANY", { resourceId: normalized, traceId });
   return [];
 }
 
 function _minutesBetweenUtcDates(a, b) {
-  if (!(a instanceof Date) || !(b instanceof Date)) {return 0;}
+  if (!(a instanceof Date) || !(b instanceof Date)) return 0;
   const ms = b.getTime() - a.getTime();
-  if (!Number.isFinite(ms) || ms <= 0) {return 0;}
+  if (!Number.isFinite(ms) || ms <= 0) return 0;
   return Math.round(ms / 60000);
 }
 
 function _parseServiceAddons(rawAddons) {
-  if (Array.isArray(rawAddons)) {return rawAddons;}
-  if (typeof rawAddons !== "string" || !rawAddons.trim()) {return [];}
+  if (Array.isArray(rawAddons)) return rawAddons;
+  if (typeof rawAddons !== "string" || !rawAddons.trim()) return [];
   try {
     const parsed = JSON.parse(rawAddons);
     return Array.isArray(parsed) ? parsed : [];
@@ -169,7 +169,7 @@ function _parseServiceAddons(rawAddons) {
 
 function _normalizeServiceAddon(addon, fallbackId) {
   const id = _safeTrim(addon?.id || addon?._id || addon?.addOnId || fallbackId);
-  if (!id) {return null;}
+  if (!id) return null;
   // [C.1] Solo bookingsAddonId / bookingsAddonGroupId (cero legacy)
   const bookingsAddonId = _safeTrim(addon?.bookingsAddonId || "");
   const bookingsAddonGroupId = _safeTrim(addon?.bookingsAddonGroupId || "");
@@ -198,7 +198,7 @@ function _resolveAddonContext(service, requestedAddonIds) {
   const catalog = Array.isArray(service?.metadata?.addons) ? service.metadata.addons : [];
   const catalogById = new Map(catalog.map((addon) => [_safeTrim(addon?.addOnId || addon?.id), addon]).filter(([id]) => Boolean(id)));
   const unknownAddonId = requestedIds.find((id) => !catalogById.has(id));
-  if (unknownAddonId) {throw new Error("ADDON_INVALID");}
+  if (unknownAddonId) throw new Error("ADDON_INVALID");
   const selectedAddons = requestedIds.map((id) => catalogById.get(id));
   const nativeAddonIds = [];
   for (const addon of selectedAddons) {
@@ -239,12 +239,12 @@ async function _mapServiceToPresentation(service, traceId) {
   if (rawAddons.length > 0) {
     addons = rawAddons.map((addon, index) => _normalizeServiceAddon(addon, `addon${index + 1}`)).filter(Boolean);
   }
-  const staffIds = [];
+  let staffIds = [];
   try {
     const rawStaff = service?.availableStaff;
     const parsed = typeof rawStaff === "string" ? JSON.parse(rawStaff) : rawStaff;
-    if (parsed && Array.isArray(parsed.staffIds)) {staffIds.push(...parsed.staffIds);}
-    else if (Array.isArray(service?.availableStaff)) {staffIds.push(...service.availableStaff);}
+    if (parsed && Array.isArray(parsed.staffIds)) staffIds.push(...parsed.staffIds);
+    else if (Array.isArray(service?.availableStaff)) staffIds.push(...service.availableStaff);
   } catch (_) {}
   const cleanStaffIds = Array.from(new Set(staffIds.map(_safeTrim).filter((id) => _looksLikeGuid(id))));
   const staffOptions = await Promise.all(
@@ -311,7 +311,7 @@ export async function _getServiceBySlugOrIdInternal(slugOrId, externalTraceId = 
       }
     } else {
       // [R-03] Usa slugUrl en la query
-      const res = await withTimeout(
+      let res = await withTimeout(
         wixData.query(SERVICIOS_COL).limit(1).eq("slugUrl", clean).find({ suppressAuth: true }),
         WATCHDOG_TIMEOUT_MS,
         "getServiceBySlugOrId:slugUrl"
@@ -324,8 +324,8 @@ export async function _getServiceBySlugOrIdInternal(slugOrId, externalTraceId = 
     }
     const mapped = await _mapServiceToPresentation(service, traceId);
     _cacheSetBounded(serviceCatalogRAM, clean, { data: mapped, timestamp: Date.now() }, CACHE_MAX_SIZE);
-    if (mapped.serviceId) {_cacheSetBounded(serviceCatalogRAM, mapped.serviceId, { data: mapped, timestamp: Date.now() }, CACHE_MAX_SIZE);}
-    if (mapped.slugUrl) {_cacheSetBounded(serviceCatalogRAM, mapped.slugUrl, { data: mapped, timestamp: Date.now() }, CACHE_MAX_SIZE);}
+    if (mapped.serviceId) _cacheSetBounded(serviceCatalogRAM, mapped.serviceId, { data: mapped, timestamp: Date.now() }, CACHE_MAX_SIZE);
+    if (mapped.slugUrl) _cacheSetBounded(serviceCatalogRAM, mapped.slugUrl, { data: mapped, timestamp: Date.now() }, CACHE_MAX_SIZE);
     return { status: "SUCCESS", data: mapped, error: null };
   } catch (e) {
     log.error("Error in getServiceBySlugOrId", { error: e?.message, traceId });
@@ -335,8 +335,8 @@ export async function _getServiceBySlugOrIdInternal(slugOrId, externalTraceId = 
 
 export async function resolveServiceId(serviceIdReq) {
   const raw = _safeTrim(serviceIdReq);
-  if (!raw) {return { status: "ERROR", data: null, error: { code: "INVALID_ID", message: "serviceId required" } };}
-  if (_looksLikeGuid(raw)) {return { status: "SUCCESS", data: raw, error: null };}
+  if (!raw) return { status: "ERROR", data: null, error: { code: "INVALID_ID", message: "serviceId required" } };
+  if (_looksLikeGuid(raw)) return { status: "SUCCESS", data: raw, error: null };
   const clean = _safeSlugOrId(raw);
   const res = await _getServiceBySlugOrIdInternal(clean);
   if (res?.status === "SUCCESS" && res?.data?.serviceId) {
@@ -366,9 +366,9 @@ export async function _resolveStaffForSlotInternal(serviceId, start1, end1, star
 }
 
 function _extractResourceIdsFromSlot(slot) {
-  if (!slot || typeof slot !== "object") {return [];}
+  if (!slot || typeof slot !== "object") return [];
   const direct = slot.resourceId || slot.resource?.id || slot.resource?._id;
-  if (direct && _looksLikeGuid(direct)) {return [String(direct)];}
+  if (direct && _looksLikeGuid(direct)) return [String(direct)];
   const resourceList = Array.isArray(slot.resources) ? slot.resources : (Array.isArray(slot.resourceIds) ? slot.resourceIds : []);
   const extracted = resourceList.map((r) => typeof r === "object" ? (r?.id || r?._id) : r).filter((id) => _looksLikeGuid(id));
   return Array.from(new Set(extracted));
@@ -437,10 +437,10 @@ async function _listTimeSlotsV2({ serviceId, fromLocalDate, toLocalDate, resourc
   const { skipCache = false, timeSlotsPerDay } = options;
   const fromKey = _normalizeLocalIsoStr(fromLocalDate);
   const toKey = _normalizeLocalIsoStr(toLocalDate);
-  if (!fromKey || !toKey) {return [];}
+  if (!fromKey || !toKey) return [];
   const resolved = await resolveServiceId(serviceId);
   const canonicalServiceId = resolved?.data;
-  if (!canonicalServiceId) {return [];}
+  if (!canonicalServiceId) return [];
   const normalizedResourceIds = Array.isArray(resourceIds) ? resourceIds.map(String).filter(_looksLikeGuid) : [];
   const normalizedNativeAddonIds = Array.isArray(nativeAddonIds) ? nativeAddonIds.map(String).filter(_looksLikeGuid) : [];
   const resourceKey = normalizedResourceIds.slice().sort().join(",");
@@ -448,9 +448,9 @@ async function _listTimeSlotsV2({ serviceId, fromLocalDate, toLocalDate, resourc
   const cacheKey = `${String(canonicalServiceId)}__${resourceKey}__${addonKey}__${fromKey}__${toKey}__ts:${timeSlotsPerDay || 0}`;
   if (!skipCache) {
     const cached = availabilityCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < SLOTS_CACHE_TTL_MS) {return cached.data;}
+    if (cached && Date.now() - cached.timestamp < SLOTS_CACHE_TTL_MS) return cached.data;
     const inflight = inflightRequests.get(cacheKey);
-    if (inflight) {return inflight;}
+    if (inflight) return inflight;
   }
   const p = (async () => {
     try {
@@ -466,9 +466,9 @@ async function _listTimeSlotsV2({ serviceId, fromLocalDate, toLocalDate, resourc
         locations: [LOCATION_TS],
         includeResourceTypeIds: [STAFF_RESOURCE_TYPE_ID],
       };
-      if (resourceTypes.length) {payload.resourceTypes = resourceTypes;}
-      if (normalizedNativeAddonIds.length > 0) {payload.customerChoices = { addOnIds: normalizedNativeAddonIds };}
-      if (Number.isFinite(timeSlotsPerDay) && Number(timeSlotsPerDay) > 0) {payload.timeSlotsPerDay = Number(timeSlotsPerDay);}
+      if (resourceTypes.length) payload.resourceTypes = resourceTypes;
+      if (normalizedNativeAddonIds.length > 0) payload.customerChoices = { addOnIds: normalizedNativeAddonIds };
+      if (Number.isFinite(timeSlotsPerDay) && Number(timeSlotsPerDay) > 0) payload.timeSlotsPerDay = Number(timeSlotsPerDay);
       const data = await _executeWithRetry(
         () => withTimeout(
           availabilityTimeSlots.listAvailabilityTimeSlots(payload),
@@ -481,13 +481,13 @@ async function _listTimeSlotsV2({ serviceId, fromLocalDate, toLocalDate, resourc
       const rawSlots = Array.isArray(data?.timeSlots) ? data.timeSlots : [];
       const slots = rawSlots
         .map((s) => {
-          if (!s) {return null;}
+          if (!s) return null;
           const start = s.localStartDate || s.startDate || "";
           const end = s.localEndDate || s.endDate || "";
           return { ...s, serviceId: canonicalServiceId, localStartDate: String(start), localEndDate: String(end) };
         })
         .filter((s) => s && s.localStartDate);
-      if (!skipCache) {_cacheSetBounded(availabilityCache, cacheKey, { data: slots, timestamp: Date.now() }, CACHE_MAX_SIZE);}
+      if (!skipCache) _cacheSetBounded(availabilityCache, cacheKey, { data: slots, timestamp: Date.now() }, CACHE_MAX_SIZE);
       return slots;
     } catch (e) {
       log.error("_listTimeSlotsV2 failed", { serviceId: canonicalServiceId, message: e?.message });
@@ -508,7 +508,7 @@ async function _listTimeSlotsV2({ serviceId, fromLocalDate, toLocalDate, resourc
 async function _getBookedMinutesByResourceForDay(dateYMD, resourceIds, traceId) {
   const ymd = String(dateYMD || "").slice(0, 10);
   const ids = Array.isArray(resourceIds) ? resourceIds.map(String).filter(Boolean) : [];
-  if (!ymd || ids.length === 0) {return {};}
+  if (!ymd || ids.length === 0) return {};
   const q = wixData
     .query(CITAS_COL)
     .eq("dateYmd", ymd)
@@ -518,19 +518,19 @@ async function _getBookedMinutesByResourceForDay(dateYMD, resourceIds, traceId) 
   let res = await withTimeout(q.find({ suppressAuth: true }), WATCHDOG_TIMEOUT_MS, "balance:queryCitas").catch(() => null);
   const items = [];
   while (res) {
-    if (Array.isArray(res.items)) {items.push(...res.items);}
-    if (!res.hasNext()) {break;}
+    if (Array.isArray(res.items)) items.push(...res.items);
+    if (!res.hasNext()) break;
     res = await withTimeout(res.next({ suppressAuth: true }), WATCHDOG_TIMEOUT_MS, "balance:queryCitasNext").catch(() => null);
   }
   const minutes = {};
   ids.forEach((rid) => (minutes[rid] = 0));
   for (const it of items) {
     const rid = String(it?.resourceId || "").trim();
-    if (!rid || minutes[rid] === undefined) {continue;}
+    if (!rid || minutes[rid] === undefined) continue;
     const start = it?.startDate ? new Date(it.startDate) : null;
     const end = it?.endDate ? new Date(it.endDate) : null;
-    if (!(start instanceof Date) || isNaN(start.getTime())) {continue;}
-    if (!(end instanceof Date) || isNaN(end.getTime())) {continue;}
+    if (!(start instanceof Date) || isNaN(start.getTime())) continue;
+    if (!(end instanceof Date) || isNaN(end.getTime())) continue;
     minutes[rid] += _minutesBetweenUtcDates(start, end);
   }
   return minutes;
@@ -538,7 +538,7 @@ async function _getBookedMinutesByResourceForDay(dateYMD, resourceIds, traceId) 
 
 async function _rankResourcesByLoad(candidateResourceIds, dateYMD, traceId) {
   const ids = Array.from(new Set(Array.isArray(candidateResourceIds) ? candidateResourceIds.map(String).filter(Boolean) : []));
-  if (ids.length <= 1) {return ids;}
+  if (ids.length <= 1) return ids;
   const minutesMap = await _getBookedMinutesByResourceForDay(dateYMD, ids, traceId).catch(() => ({}));
   const names = {};
   await Promise.allSettled(
@@ -549,7 +549,7 @@ async function _rankResourcesByLoad(candidateResourceIds, dateYMD, traceId) {
   return ids.sort((a, b) => {
     const ma = Number(minutesMap[a] || 0);
     const mb = Number(minutesMap[b] || 0);
-    if (ma !== mb) {return ma - mb;}
+    if (ma !== mb) return ma - mb;
     const na = String(names[a] || a);
     const nb = String(names[b] || b);
     return na.localeCompare(nb);
@@ -564,9 +564,9 @@ async function _pickLeastLoadedResource(candidateResourceIds, dateYMD, traceId) 
 async function _findNextSlotForServiceInternal(serviceId, fromLocalDateTime, requiredResourceId, traceId) {
   const resolved = await resolveServiceId(serviceId);
   const canonicalServiceId = resolved?.data;
-  if (!canonicalServiceId) {return { status: "ERROR", data: null, error: { code: "SERVICE_NOT_FOUND", message: "Service ID not found" } };}
+  if (!canonicalServiceId) return { status: "ERROR", data: null, error: { code: "SERVICE_NOT_FOUND", message: "Service ID not found" } };
   const fromLocal = _normalizeLocalIsoStr(fromLocalDateTime);
-  if (!fromLocal) {return { status: "ERROR", data: null, error: { code: "INVALID_DATES", message: "fromLocalDateTime invalid" } };}
+  if (!fromLocal) return { status: "ERROR", data: null, error: { code: "INVALID_DATES", message: "fromLocalDateTime invalid" } };
   const startYMD = fromLocal.slice(0, 10);
   const mustHaveStaff = _looksLikeGuid(requiredResourceId);
   const resourceIds = mustHaveStaff ? [String(requiredResourceId)] : [];
@@ -579,11 +579,11 @@ async function _findNextSlotForServiceInternal(serviceId, fromLocalDateTime, req
     const candidates = (slots || [])
       .filter((s) => _normalizeLocalIsoStr(s.localStartDate) >= normFrom)
       .sort((a, b) => String(a.localStartDate).localeCompare(String(b.localStartDate)));
-    if (!candidates.length) {continue;}
+    if (!candidates.length) continue;
     if (mustHaveStaff) {
       const required = String(requiredResourceId);
       const match = candidates.find((s) => _extractResourceIdsFromSlot(s).includes(required));
-      if (match) {return { status: "SUCCESS", data: { slot: match, dayYMD: ymd }, error: null };}
+      if (match) return { status: "SUCCESS", data: { slot: match, dayYMD: ymd }, error: null };
       continue;
     }
     return { status: "SUCCESS", data: { slot: candidates[0], dayYMD: ymd }, error: null };
@@ -670,13 +670,13 @@ export async function getCertifiedDualSlots(serviceId, resourceId, dateYMD, requ
   const pairs = [];
   for (const s1 of slotsF1 || []) {
     const s1EndLocal = _normalizeLocalIsoStr(s1.localEndDate);
-    if (!s1EndLocal) {continue;}
+    if (!s1EndLocal) continue;
     const s1EndUtc = getUtcDateFromMadridLocal(s1EndLocal);
-    if (!s1EndUtc) {continue;}
+    if (!s1EndUtc) continue;
     const earliestF2Utc = new Date(s1EndUtc.getTime() + exposureMs);
     const earliestF2Local = getMadridLocalStringNoZ(earliestF2Utc);
     const candidateResourceIds = _extractResourceIdsFromSlot(s1);
-    if (!candidateResourceIds.length) {continue;}
+    if (!candidateResourceIds.length) continue;
     const rankedCandidates = await _rankResourcesByLoad(candidateResourceIds, dateYMD, traceId);
     let chosenResourceId = null;
     let s2 = null;
@@ -687,15 +687,15 @@ export async function getCertifiedDualSlots(serviceId, resourceId, dateYMD, requ
         candidateResourceId,
         traceId
       );
-      if (nextF2?.status !== "SUCCESS" || !nextF2?.data?.slot) {continue;}
+      if (nextF2?.status !== "SUCCESS" || !nextF2?.data?.slot) continue;
       const candidateF2 = nextF2.data.slot;
       const s2Staff = _extractResourceIdsFromSlot(candidateF2);
-      if (s2Staff.length > 0 && !s2Staff.includes(String(candidateResourceId))) {continue;}
+      if (s2Staff.length > 0 && !s2Staff.includes(String(candidateResourceId))) continue;
       chosenResourceId = candidateResourceId;
       s2 = candidateF2;
       break;
     }
-    if (!chosenResourceId || !s2) {continue;}
+    if (!chosenResourceId || !s2) continue;
     // [BE-03] SHA256 deterministic pairToken generation for SSOT compliance
     const emailHash = hashSHA256(traceId || "").substring(0, 8);
     const f1Start = _safeTrim(s1.localStartDate || s1.startDate || "");
@@ -746,10 +746,10 @@ export async function _invalidateCachesInternal(serviceId, dateYMD, resourceId, 
   const resolved = await resolveServiceId(serviceId);
   const canonicalServiceId = resolved?.data || _safeTrim(serviceId);
   const ymd = _safeTrim(dateYMD);
-  if (!canonicalServiceId || !_isValidMadridYmd(ymd)) {return { ok: true, traceId: tId, skipped: true };}
+  if (!canonicalServiceId || !_isValidMadridYmd(ymd)) return { ok: true, traceId: tId, skipped: true };
   const prefix = `${String(canonicalServiceId)}__`;
   for (const k of availabilityCache.keys()) {
-    if (String(k).startsWith(prefix)) {availabilityCache.delete(k);}
+    if (String(k).startsWith(prefix)) availabilityCache.delete(k);
   }
   const yearMonth = String(ymd).slice(0, 7);
   const resourceIds = _normalizeResourceIds(resourceId, tId).sort().join(",");
@@ -813,10 +813,10 @@ export const getAvailableDays = webMethod(Permissions.Anyone, async (serviceId, 
     _rateLimitOrThrow("reservas.getAvailableDays", `${_safeTrim(serviceId)}|${String(year)}|${String(month)}`, traceId);
     const resolved = await resolveServiceId(serviceId);
     const canonicalServiceId = resolved?.data;
-    if (!canonicalServiceId) {return { status: "ERROR", data: null, error: { code: "SERVICE_NOT_FOUND", message: "Service ID not found" } };}
+    if (!canonicalServiceId) return { status: "ERROR", data: null, error: { code: "SERVICE_NOT_FOUND", message: "Service ID not found" } };
     const svcRes = await _getServiceBySlugOrIdInternal(canonicalServiceId, traceId);
     const service = svcRes?.data;
-    if (!service) {return { status: "ERROR", data: null, error: { code: "SERVICE_CONFIG_MISSING", message: "Service configuration missing" } };}
+    if (!service) return { status: "ERROR", data: null, error: { code: "SERVICE_CONFIG_MISSING", message: "Service configuration missing" } };
     const addonContext = _resolveAddonContext(service, addonIds);
     const resourceIds = _normalizeResourceIds(resourceId, traceId);
     const y = Number(year);
@@ -835,7 +835,7 @@ export const getAvailableDays = webMethod(Permissions.Anyone, async (serviceId, 
     const lastDay = `${yearMonth}-${String(lastDayNum).padStart(2, "0")}`;
     const fromLocal = tomorrowStr > firstDay ? tomorrowStr : firstDay;
     const toLocal = maxDateStr < lastDay ? maxDateStr : lastDay;
-    if (fromLocal > toLocal) {return { status: "SUCCESS", data: [], error: null };}
+    if (fromLocal > toLocal) return { status: "SUCCESS", data: [], error: null };
     const slots = await _listTimeSlotsV2({
       serviceId: canonicalServiceId,
       fromLocalDate: `${fromLocal}T00:00:00`,
@@ -845,7 +845,7 @@ export const getAvailableDays = webMethod(Permissions.Anyone, async (serviceId, 
     }, { skipCache: true, timeSlotsPerDay: 1 });
     const dateSet = new Set();
     slots.forEach((s) => {
-      if (s.localStartDate) {dateSet.add(String(s.localStartDate).slice(0, 10));}
+      if (s.localStartDate) dateSet.add(String(s.localStartDate).slice(0, 10));
     });
     return { status: "SUCCESS", data: _filterDaysByLimit(Array.from(dateSet).sort()), error: null };
   } catch (err) {
@@ -859,10 +859,10 @@ export const resolveStaffForSlot = webMethod(Permissions.Anyone, async (serviceI
     _rateLimitOrThrow("reservas.resolveStaffForSlot", `${_safeTrim(serviceId)}|${_safeTrim(start1)}`, traceId);
     const resolved = await resolveServiceId(serviceId);
     const canonicalServiceId = resolved?.data;
-    if (!canonicalServiceId) {return { status: "ERROR", data: null, error: { code: "SERVICE_NOT_FOUND", message: "Service ID not found" } };}
+    if (!canonicalServiceId) return { status: "ERROR", data: null, error: { code: "SERVICE_NOT_FOUND", message: "Service ID not found" } };
     const svcRes = await _getServiceBySlugOrIdInternal(canonicalServiceId, traceId);
     const serviceCfg = svcRes?.data;
-    if (!serviceCfg) {return { status: "ERROR", data: null, error: { code: "SERVICE_CONFIG_MISSING", message: "Service not in catalog" } };}
+    if (!serviceCfg) return { status: "ERROR", data: null, error: { code: "SERVICE_CONFIG_MISSING", message: "Service not in catalog" } };
     const addonContext = _resolveAddonContext(serviceCfg, addonIds);
     const dateYMD = String(start1).slice(0, 10);
     const isAnyStaff = !rId || ["all", "any"].includes(String(rId).trim().toLowerCase());
@@ -876,7 +876,7 @@ export const resolveStaffForSlot = webMethod(Permissions.Anyone, async (serviceI
     const slotF1 = (slotsF1 || []).find(
       (s) => _normalizeLocalIsoStr(s.localStartDate) === _normalizeLocalIsoStr(start1)
     );
-    if (!slotF1) {return { status: "ERROR", data: null, error: { code: "SLOT_UNAVAILABLE", message: "F1 slot is no longer available." } };}
+    if (!slotF1) return { status: "ERROR", data: null, error: { code: "SLOT_UNAVAILABLE", message: "F1 slot is no longer available." } };
     let candidateResourceIds = _extractResourceIdsFromSlot(slotF1);
     let slotF2 = null;
     if (dualContext && dualContext.start2) {
@@ -907,7 +907,7 @@ export const resolveStaffForSlot = webMethod(Permissions.Anyone, async (serviceI
     const finalResourceId = isAnyStaff ?
       await _pickLeastLoadedResource(candidateResourceIds, dateYMD, traceId) :
       requestedResourceId;
-    if (!finalResourceId) {return { status: "ERROR", data: null, error: { code: "STAFF_NOT_AVAILABLE", message: "No staff could be assigned." } };}
+    if (!finalResourceId) return { status: "ERROR", data: null, error: { code: "STAFF_NOT_AVAILABLE", message: "No staff could be assigned." } };
     const finalResourceName = (await _getStaffDisplayName(finalResourceId)) || STAFF_DEFAULT_NAME;
     return {
       status: "SUCCESS",

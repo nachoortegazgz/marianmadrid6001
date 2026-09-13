@@ -44,6 +44,11 @@ const WEBHOOK_RETRIES = Number(SDK_CONFIG?.EVENTS?.RETRY_ATTEMPTS) || 3;
 const WEBHOOK_RETRY_DELAY_MS = Number(SDK_CONFIG?.EVENTS?.RETRY_BASE_BACKOFF_MS) || 1000;
 const API_TIMEOUT_MS = Number(SDK_CONFIG?.TIMEOUTS?.WEBHOOK_MS) || 30000;
 
+function _normalizeBookingIds(value) {
+const values = Array.isArray(value) ? value : String(value || "").split(",");
+return Array.from(new Set(values.map((id) => String(id || "").trim()).filter(Boolean)));
+}
+
 // [EVENTS-05] COLECCION PARA EVENTOS PROCESADOS (idempotencia)
 const PROCESSED_EVENTS_COL = COLLECTIONS.MM_PROCESSED_EVENTS || "MM_ProcessedEvents";
 const EVENT_TTL_HOURS = 72; // Mantener eventos 72 horas
@@ -145,7 +150,7 @@ return {
 }, traceId, "events_updateCitaEstado");
 }
 async function _markCitasRefundedByBookingIds(bookingIds, orderId, refundId, fullyRefunded, traceId) {
-const ids = Array.isArray(bookingIds) ? bookingIds.map(String).filter(Boolean) : [];
+const ids = _normalizeBookingIds(bookingIds);
 for (const bookingId of ids) {
 await _updateCitaSafe(bookingId, (cita) => {
 const meta = cita.meta || {};
@@ -166,7 +171,7 @@ fechaReembolso: new Date(),
 }
 }
 async function _markCitasPaidByBookingIds(bookingIds, orderId, traceId) {
-const ids = Array.from(new Set(Array.isArray(bookingIds) ? bookingIds.map(String).filter(Boolean) : []));
+const ids = _normalizeBookingIds(bookingIds);
 for (const bookingId of ids) {
 await _updateCitaSafe(bookingId, (cita) => {
 const meta = cita.meta || {};
@@ -187,7 +192,7 @@ fechaConfirmacionPago: new Date(),
 }
 }
 async function _markCitasPendingLedgerByBookingIds(bookingIds, orderId, traceId) {
-const ids = Array.isArray(bookingIds) ? bookingIds.map(String).filter(Boolean) : [];
+const ids = _normalizeBookingIds(bookingIds);
 for (const bookingId of ids) {
 await _updateCitaSafe(bookingId, (cita) => {
 const meta = cita.meta || {};
@@ -294,7 +299,7 @@ error: inventoryError?.message || String(inventoryError),
 });
 const bookingsAppId = APP_IDS.BOOKINGS;
 const bookingLineItems = lineItems.filter((item) => item?.catalogReference?.appId === bookingsAppId);
-const bookingIds = bookingLineItems.map((item) => String(item?.catalogReference?.catalogItemId || "").trim()).filter(Boolean);
+const bookingIds = _normalizeBookingIds(bookingLineItems.map((item) => item?.catalogReference?.catalogItemId));
 const linkedBookingIds = bookingIds.join(",");
 const orderTotal = Number(order?.priceSummary?.total?.amount ?? order?.totals?.total?.amount ?? 0) || 0;
 const lineItemsTotal = lineItems.reduce((sum, item) => {
@@ -445,9 +450,9 @@ orderId
 return { status: "OK" };
 }
 const originalAmount = Number(originalMovement.totalAmount || 0);
-const linkedBookingIds = originalMovement.reservaIdVinculada ?
-String(originalMovement.reservaIdVinculada).split(",").filter(Boolean) :
-[];
+const linkedBookingIds = _normalizeBookingIds(
+originalMovement.reservaIdVinculada || originalMovement.reservationIdLinked
+);
 const refundRestockInfo = event?.sideEffects?.restockInfo ||
 event?.data?.sideEffects?.restockInfo ||
 refundObj?.sideEffects?.restockInfo ||
@@ -546,10 +551,9 @@ const orderId = String(order?._id || order?.id || "").trim() || "unknown";
 if (orderId !== "unknown") {
 const lineItems = Array.isArray(order.lineItems) ? order.lineItems : [];
 const bookingsAppId = APP_IDS.BOOKINGS;
-const bookingIds = lineItems
+const bookingIds = _normalizeBookingIds(lineItems
 .filter((item) => item?.catalogReference?.appId === bookingsAppId)
-.map((item) => item?.catalogReference?.catalogItemId)
-.filter(Boolean);
+.map((item) => item?.catalogReference?.catalogItemId));
 for (const bId of bookingIds) {
 await _updateCitaStatus(bId, ESTADO_CITA.CANCELED, traceId);
 }

@@ -10,7 +10,7 @@
    - MOVIMIENTO_INVENTARIO -> MOVIMIENTOS_INVENTARIO -> "MovimientosInventario"
    - Legacy stock reconciliation collection was removed (absorbed by
      MovimientosInventario)
-     con .eq("requiresWixReconciliation", true))
+     con .eq("needsWixReconciliation", true))
    - stockActual / existenciasEsperadasUnidades -> stockExpected
    - nombreProducto -> productName
    - stockMinimo -> lowStockAlert
@@ -100,7 +100,7 @@
      await requireCajero(traceId);
      const res = await wixData
        .query(MOVIMIENTOS_COL)
-       .eq("requiresWixReconciliation", true)
+       .eq("needsWixReconciliation", true)
        .descending("appliedAt")
        .limit(100)
        .find({ suppressAuth: true });
@@ -158,7 +158,7 @@
        status: "APPLIED",
        appliedAt: new Date(),
        appliedByNote: "Wix eCommerce Order",
-       requiresWixReconciliation: false,
+       needsWixReconciliation: false,
        nativeCommercialMovement: true,
        orderId,
        refundId: null,
@@ -233,7 +233,7 @@
        status: "APPLIED",
        appliedAt: new Date(),
        appliedByNote: "Wix eCommerce Refund Restock",
-       requiresWixReconciliation: false,
+       needsWixReconciliation: false,
        nativeCommercialMovement: true,
        orderId,
        refundId,
@@ -303,7 +303,7 @@
        status: "REJECTED",
        appliedAt: new Date(),
        appliedByNote: meta.actorEmail || "SYSTEM",
-       requiresWixReconciliation: true,
+       needsWixReconciliation: true,
        nativeCommercialMovement: false,
        orderId: null,
        refundId: null,
@@ -347,7 +347,7 @@
      status: "APPLIED",
      appliedAt: new Date(),
      appliedByNote: meta.actorEmail || "SYSTEM",
-     requiresWixReconciliation: false,
+     needsWixReconciliation: false,
      nativeCommercialMovement: false,
      orderId: null,
      refundId: null,
