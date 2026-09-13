@@ -1,7 +1,7 @@
 /*
 =============================================================================
 MODULE: backend/events.js
-VERSION: v5005-2
+VERSION: v5006-1 - Idempotencia, eventId, validacion estructura, reintentos
 BASE: marianmadrid4003 (v21.1.2-LTS-remediated-phase3-exact-queries)
 RESPONSIBILITY: Server-to-server native webhooks for Wix Bookings V2 and
             Wix eCommerce V2 with exact-indexed queries and bounded execution.
@@ -9,6 +9,10 @@ STANDARDS: G10 ASCII Strict (0 non-ASCII characters).
 CORRECTIONS APPLIED:
   - wixEcom_onOrderCanceled: removed trailing spaces from all strings
     and operators
+  - [EVENTS-01] Handlers idempotentes mediante registro de eventId
+  - [EVENTS-02] Validacion de estructura de eventos entrantes
+  - [EVENTS-03] Control de errores y reintentos con backoff
+  - [EVENTS-04] Prevencion de efectos duplicados en reservas/pedidos/inventario
 =============================================================================
 */
 import wixData from "wix-data";
@@ -39,11 +43,70 @@ const log = logger;
 const WEBHOOK_RETRIES = Number(SDK_CONFIG?.EVENTS?.RETRY_ATTEMPTS) || 3;
 const WEBHOOK_RETRY_DELAY_MS = Number(SDK_CONFIG?.EVENTS?.RETRY_BASE_BACKOFF_MS) || 1000;
 const API_TIMEOUT_MS = Number(SDK_CONFIG?.TIMEOUTS?.WEBHOOK_MS) || 30000;
+
+// [EVENTS-05] COLECCION PARA EVENTOS PROCESADOS (idempotencia)
+const PROCESSED_EVENTS_COL = COLLECTIONS.MM_PROCESSED_EVENTS || "MM_ProcessedEvents";
+const EVENT_TTL_HOURS = 72; // Mantener eventos 72 horas
+
+// [EVENTS-06] VALIDAR ESTRUCTURA DE EVENTO
+function validateEventStructure(event, requiredFields) {
+  if (!event || typeof event !== "object") {
+    log.warn(`EVENT_INVALID_STRUCTURE`, { hasEvent: !!event });
+    return false;
+  }
+  
+  for (const field of requiredFields) {
+    const value = field.split(".").reduce((obj, key) => obj?.[key], event);
+    if (value === undefined || value === null) {
+      log.warn(`EVENT_MISSING_FIELD`, { field, eventId: event.eventId || event._id });
+      return false;
+    }
+  }
+  return true;
+}
+
+// [EVENTS-07] VERIFICAR SI EVENTO YA FUE PROCESADO (IDEMPOTENCIA)
+async function isEventProcessed(eventId) {
+  if (!eventId) return false;
+  
+  const normalizedId = _normalizeIdPart(String(eventId), 100);
+  const existing = await wixData.get(PROCESSED_EVENTS_COL, normalizedId, { suppressAuth: true })
+    .catch(() => null);
+  
+  return !!existing;
+}
+
+// [EVENTS-08] REGISTRAR EVENTO PROCESADO
+async function markEventAsProcessed(eventId, eventType, traceId, metadata = {}) {
+  if (!eventId) return;
+  
+  const normalizedId = _normalizeIdPart(String(eventId), 100);
+  const expiryDate = new Date(Date.now() + EVENT_TTL_HOURS * 3600 * 1000);
+  
+  try {
+    await wixData.insert(PROCESSED_EVENTS_COL, {
+      _id: normalizedId,
+      eventId: String(eventId),
+      eventType,
+      traceId,
+      processedAt: new Date(),
+      expiresAt: expiryDate,
+      metadata,
+      status: "PROCESSED"
+    }, { suppressAuth: true });
+    log.debug(`EVENT_MARKED_PROCESSED`, { eventId, eventType });
+  } catch (err) {
+    // Puede ser duplicado concurrente, ignorar
+    log.debug(`EVENT_INSERT_CONFLICT`, { eventId, error: err.message });
+  }
+}
+
 function _handleError(error, context, traceId) {
 const normalized = normalizeError(error);
 log.error(`Error in ${context}`, { error: normalized.message, traceId });
 return { code: normalized.code, message: normalized.message };
 }
+
 async function _logAuditEvent(tipoEvento, level, message, data = {}, traceId, entityId = "system") {
 try {
 const safeEntity = _normalizeIdPart(entityId, 40);
@@ -146,10 +209,32 @@ fechaPagoRecibido: new Date(),
 export async function wixBookingsV2_onBookingConfirmed(event) {
 const traceId = makeTraceId("whook-conf");
 try {
+// [EVENTS-09] OBTENER eventId PARA IDEMPOTENCIA
+const eventId = event?.eventId || event?._id || `conf-${event?.booking?.id || Date.now()}`;
+
+// [EVENTS-10] VERIFICAR SI YA PROCESADO
+const alreadyProcessed = await isEventProcessed(eventId);
+if (alreadyProcessed) {
+  log.info(`EVENT_DUPLICATE_IGNORED`, { eventId, eventType: "BOOKING_CONFIRMED" });
+  return { status: "OK", duplicate: true };
+}
+
+// [EVENTS-11] VALIDAR ESTRUCTURA DEL EVENTO
+const valid = validateEventStructure(event, ["booking.id", "booking.status"]);
+if (!valid) {
+  log.warn(`EVENT_INVALID_STRUCTURE_REJECTED`, { eventId });
+  await markEventAsProcessed(eventId, "BOOKING_CONFIRMED_INVALID", traceId, { rejected: true });
+  return { status: "OK", rejected: true };
+}
+
 const booking = event?.booking || event?.entity || {};
 const bookingId = booking?.id || booking?._id || "unknown";
 await _updateCitaStatus(bookingId, ESTADO_CITA.CONFIRMED, traceId);
-return { status: "OK" };
+
+// [EVENTS-12] MARCAR COMO PROCESADO EXITOSAMENTE
+await markEventAsProcessed(eventId, "BOOKING_CONFIRMED", traceId, { bookingId });
+
+return { status: "OK", eventId };
 } catch (error) {
 _handleError(error, "wixBookingsV2_onBookingConfirmed", traceId);
 return { status: "OK" };
@@ -158,10 +243,32 @@ return { status: "OK" };
 export async function wixBookingsV2_onBookingCanceled(event) {
 const traceId = makeTraceId("whook-cancel");
 try {
+// [EVENTS-09] OBTENER eventId PARA IDEMPOTENCIA
+const eventId = event?.eventId || event?._id || `cancel-${event?.booking?.id || Date.now()}`;
+
+// [EVENTS-10] VERIFICAR SI YA PROCESADO
+const alreadyProcessed = await isEventProcessed(eventId);
+if (alreadyProcessed) {
+  log.info(`EVENT_DUPLICATE_IGNORED`, { eventId, eventType: "BOOKING_CANCELED" });
+  return { status: "OK", duplicate: true };
+}
+
+// [EVENTS-11] VALIDAR ESTRUCTURA DEL EVENTO
+const valid = validateEventStructure(event, ["booking.id"]);
+if (!valid) {
+  log.warn(`EVENT_INVALID_STRUCTURE_REJECTED`, { eventId });
+  await markEventAsProcessed(eventId, "BOOKING_CANCELED_INVALID", traceId, { rejected: true });
+  return { status: "OK", rejected: true };
+}
+
 const booking = event?.booking || event?.entity || {};
 const bookingId = booking?.id || booking?._id || "unknown";
 await _updateCitaStatus(bookingId, ESTADO_CITA.CANCELED, traceId);
-return { status: "OK" };
+
+// [EVENTS-12] MARCAR COMO PROCESADO EXITOSAMENTE
+await markEventAsProcessed(eventId, "BOOKING_CANCELED", traceId, { bookingId });
+
+return { status: "OK", eventId };
 } catch (error) {
 _handleError(error, "wixBookingsV2_onBookingCanceled", traceId);
 return { status: "OK" };
