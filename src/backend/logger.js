@@ -19,7 +19,9 @@ const LOG_LEVELS = {
   ERROR: 3
 };
 
-const CURRENT_LOG_LEVEL = process.env.LOG_LEVEL ? LOG_LEVELS[process.env.LOG_LEVEL] : LOG_LEVELS.INFO;
+// Wix Velo does not expose Node.js environment variables in the backend runtime.
+// Keep the production default explicit until configuration is provided by Wix.
+const CURRENT_LOG_LEVEL = LOG_LEVELS.INFO;
 
 /**
  * Genera un traceId unico para correlacionar logs de una misma operacion
@@ -88,32 +90,33 @@ function formatAndLog(level, message, context = {}, traceId) {
   }
 }
 
-/**
- * Sanitiza el log entry para evitar exponer datos sensibles
- */
-function sanitizeLogEntry(entry) {
-  const sensitiveFields = [
-    'password', 'secret', 'token', 'apiKey', 'api_key', 
-    'creditCard', 'cardNumber', 'cvv', 'pin',
-    'authorization', 'auth', 'bearer'
-  ];
+const SENSITIVE_FIELD_NAMES = new Set([
+  'password', 'secret', 'token', 'apikey', 'api_key',
+  'creditcard', 'cardnumber', 'cvv', 'pin',
+  'authorization', 'auth', 'bearer'
+]);
 
-  for (const field of sensitiveFields) {
-    if (entry[field]) {
-      entry[field] = '[REDACTED]';
-    }
-    // Buscar en objetos anidados
-    for (const key in entry) {
-      if (typeof entry[key] === 'object' && entry[key] !== null) {
-        if (entry[key][field]) {
-          entry[key][field] = '[REDACTED]';
-        }
-      }
+function sanitizeLogValue(value, seen) {
+  if (!value || typeof value !== 'object' || seen.has(value)) return value;
+  seen.add(value);
+
+  for (const key of Object.keys(value)) {
+    const normalizedKey = key.toLowerCase().replace(/[-_]/g, '');
+    if (SENSITIVE_FIELD_NAMES.has(normalizedKey) || SENSITIVE_FIELD_NAMES.has(key.toLowerCase())) {
+      value[key] = '[REDACTED]';
+    } else if (typeof value[key] === 'object' && value[key] !== null) {
+      sanitizeLogValue(value[key], seen);
     }
   }
+  return value;
+}
 
-  // Eliminar errores completos que puedan contener secrets
-  if (entry.error && typeof entry.error === 'string') {
+/**
+ * Sanitiza el log entry para evitar exponer datos sensibles, incluidos objetos anidados.
+ */
+function sanitizeLogEntry(entry) {
+  sanitizeLogValue(entry, new Set());
+  if (typeof entry.error === 'string') {
     const errorLower = entry.error.toLowerCase();
     if (errorLower.includes('secret') || errorLower.includes('token') || errorLower.includes('unauthorized')) {
       entry.error = '[REDACTED_ERROR]';
