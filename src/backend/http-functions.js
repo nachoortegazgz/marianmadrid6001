@@ -46,7 +46,7 @@ async function _validateHMACSignature(request, bodyString, traceId) {
   if (!secret) return false;
   const payload = `${timestamp}.${bodyString}`;
   const expectedSignature = hmacSha256Hex(secret, payload);
-  return timingSafeEqual(signature, expectedSignature);
+  return signature.length === expectedSignature.length && timingSafeEqual(signature, expectedSignature);
 }
 
 export async function get_service(request) {

@@ -515,8 +515,13 @@ async function _getBookedMinutesByResourceForDay(dateYMD, resourceIds, traceId) 
     .in("status", ["CONFIRMED", "PENDING_PAYMENT"])
     .in("resourceId", ids)
     .limit(1000);
-  const res = await withTimeout(q.find({ suppressAuth: true }), WATCHDOG_TIMEOUT_MS, "balance:queryCitas").catch(() => null);
-  const items = Array.isArray(res?.items) ? res.items : [];
+  let res = await withTimeout(q.find({ suppressAuth: true }), WATCHDOG_TIMEOUT_MS, "balance:queryCitas").catch(() => null);
+  const items = [];
+  while (res) {
+    if (Array.isArray(res.items)) items.push(...res.items);
+    if (!res.hasNext()) break;
+    res = await withTimeout(res.next({ suppressAuth: true }), WATCHDOG_TIMEOUT_MS, "balance:queryCitasNext").catch(() => null);
+  }
   const minutes = {};
   ids.forEach((rid) => (minutes[rid] = 0));
   for (const it of items) {

@@ -35,7 +35,7 @@ const bufB = Buffer.from(String(b || ""), "utf8");
 if (bufA.length !== bufB.length) return false;
 return nodeTimingSafeEqual(bufA, bufB);
 } catch (_) {
-return String(a || "") === String(b || "");
+return false;
 }
 }
 function _base64UrlEncode(input) {
