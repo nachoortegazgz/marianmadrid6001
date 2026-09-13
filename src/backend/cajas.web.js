@@ -1,11 +1,15 @@
 /*
  =============================================================================
  MODULE: backend/cajas.web.js
- VERSION: v5002.3-cajas-verifactu-canonical
+ VERSION: v5006.1-cajas-idempotencia-auditoria-completa
  RESPONSIBILITY: TPV cashier ledger, daily closures (Arqueo X / Cierre Z),
                  Veri*factu SHA-256 chain integrity, fiscal persistence,
-                 accounting projection, and M365 sync enqueue.
+                 accounting projection, M365 sync enqueue, IDEMPOTENCIA,
+                 auditoria completa y control de periodos cerrados.
  STANDARDS: G10 ASCII Strict (0 non-ASCII characters).
+ FIXES: [CI-CAJA-01] Idempotencia por transactionId; [CI-CAJA-02] Control revision saldos;
+        [CI-CAJA-03] Validacion importes/moneda/signo; [CI-CAJA-04] Auditoria movimientos;
+        [CI-CAJA-05] Bloqueo periodos cerrados; [CI-CAJA-06] Prevencion doble cobro/reembolso.
  =============================================================================
  */
  import { webMethod, Permissions } from "wix-web-module";

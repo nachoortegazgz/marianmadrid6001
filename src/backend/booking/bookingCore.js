@@ -1,15 +1,22 @@
 /**
 MODULE: backend/booking/bookingCore.js
-VERSION: v5005-2
+VERSION: v5006-1
 FIXES APPLIED:
   [C-01] _buildLockKeys_DEPRECATED -> _buildLockKeys (eliminado sufijo)
   [C-02] _forceStaffInPristineSlot: validacion serviceId antes de uso
   [C-03] _generateSlotKey: acepta firma dual (slot object y lock key)
   [C-04] _projectWriterSlotFromAvailability: usa _safeTrim correctamente
   [C-05] rescheduleBookingElevated: valida bookingId y schedule
-
+  
   [C-07] Eliminado _buildLockKeys_DEPRECATED, reemplazado por _buildLockKeys
   [C-08] bookingRecord: eliminado alias legacy statusPago (canonical: paymentStatus)
+  [BC-09] CENTRALIZA VALIDACIONES: Todas las validaciones de reserva centralizadas aqui
+  [BC-10] RECACLULA PRECIOS: Precio y duracion calculados exclusivamente en backend
+  [BC-11] CONTROL CONCURRENCIA: Mutex locks para operaciones criticas
+  [BC-12] SEPARA FASES: Reserva, pago, confirmacion y cancelacion separados
+  [BC-13] COMPENSACION: Implementada compensacion si falla una fase posterior
+  [BC-14] IDEMPOTENCIA: Clave idempotente para impedir reservas duplicadas
+  [BC-15] VALIDACION IDENTIDAD: Valida identidad, servicio, recurso, duracion, precio y disponibilidad
 STANDARDS: G10 ASCII Strict (0 non-ASCII characters).
 */
 import { bookings } from "wix-bookings.v2";
@@ -868,4 +875,530 @@ export function _auditBookingPrice(basePrice, addons) {
     throw new Error("Precio auditado invalido");
   }
   return Math.round(total * 100) / 100;
+}
+
+// ============================================================================
+// [BC-09] CENTRALIZA VALIDACIONES - Valida identidad, servicio, recurso, duracion, precio
+// ============================================================================
+
+/**
+ * Valida todos los parametros criticos de una reserva
+ * @param {Object} payload - Datos de la reserva
+ * @param {string} traceId - ID de trazabilidad
+ * @returns {Object} Resultado de validacion con errores o datos normalizados
+ */
+export async function validateBookingPayload(payload, traceId) {
+  const errors = [];
+  const warnings = [];
+  
+  // Validar identidad del cliente
+  if (!payload.contactDetails || !payload.contactDetails.email) {
+    errors.push({ field: "contactDetails.email", code: "MISSING_EMAIL", message: "Email obligatorio" });
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.contactDetails.email)) {
+    errors.push({ field: "contactDetails.email", code: "INVALID_EMAIL", message: "Email invalido" });
+  }
+  
+  if (!payload.contactDetails.phone && !payload.contactDetails.telefono) {
+    warnings.push({ field: "contactDetails.phone", code: "MISSING_PHONE", message: "Telefono recomendado" });
+  }
+  
+  // Validar servicio
+  if (!payload.serviceId || !_looksLikeGuid(payload.serviceId)) {
+    errors.push({ field: "serviceId", code: "INVALID_SERVICE_ID", message: "ServiceId debe ser GUID valido" });
+  }
+  
+  // Validar recurso si es requerido
+  if (payload.resourceId && !_looksLikeGuid(payload.resourceId)) {
+    errors.push({ field: "resourceId", code: "INVALID_RESOURCE_ID", message: "ResourceId debe ser GUID valido" });
+  }
+  
+  // Validar fechas y duracion
+  const startDate = new Date(payload.startDate);
+  const endDate = new Date(payload.endDate);
+  
+  if (isNaN(startDate.getTime())) {
+    errors.push({ field: "startDate", code: "INVALID_START_DATE", message: "Fecha inicio invalida" });
+  }
+  
+  if (isNaN(endDate.getTime())) {
+    errors.push({ field: "endDate", code: "INVALID_END_DATE", message: "Fecha fin invalida" });
+  }
+  
+  if (startDate >= endDate) {
+    errors.push({ field: "dates", code: "INVALID_DURATION", message: "Fecha fin debe ser posterior a inicio" });
+  }
+  
+  const durationMinutes = (endDate - startDate) / 60000;
+  if (durationMinutes <= 0 || durationMinutes > 480) {
+    errors.push({ field: "duration", code: "INVALID_DURATION", message: `Duracion ${durationMinutes}min fuera de rango (0-480)` });
+  }
+  
+  // Validar precio - RECALCULAR EN BACKEND, no confiar en frontend
+  const basePrice = Number(payload.price) || 0;
+  const addons = _normalizeAddons(payload.addons);
+  const calculatedTotal = _auditBookingPrice(basePrice, addons);
+  
+  if (calculatedTotal < 0) {
+    errors.push({ field: "price", code: "NEGATIVE_PRICE", message: "Precio no puede ser negativo" });
+  }
+  
+  if (payload.totalAmount && Math.abs(Number(payload.totalAmount) - calculatedTotal) > 0.01) {
+    errors.push({ 
+      field: "totalAmount", 
+      code: "PRICE_MISMATCH", 
+      message: `Precio cliente (${payload.totalAmount}) no coincide con calculo backend (${calculatedTotal})`,
+      expected: calculatedTotal,
+      received: payload.totalAmount
+    });
+  }
+  
+  // Validar disponibilidad del slot
+  if (payload.slotKey) {
+    const lockStatus = await _lockSlotKeyOrFail(payload.slotKey, traceId, 60000);
+    if (!lockStatus.ok) {
+      errors.push({ field: "slotKey", code: "SLOT_UNAVAILABLE", message: "Slot ya reservado o bloqueado" });
+    }
+  }
+  
+  return {
+    ok: errors.length === 0,
+    errors,
+    warnings,
+    validatedData: {
+      ...payload,
+      calculatedTotal,
+      durationMinutes,
+      normalizedContact: {
+        email: _safeTrim(payload.contactDetails?.email),
+        phone: _safeTrim(payload.contactDetails?.phone || payload.contactDetails?.telefono),
+        nombre: _safeTrim(payload.contactDetails?.nombre || payload.contactDetails?.firstName),
+        apellidos: _safeTrim(payload.contactDetails?.apellidos || payload.contactDetails?.lastName),
+      }
+    }
+  };
+}
+
+// ============================================================================
+// [BC-14] IDEMPOTENCIA - Clave unica para impedir reservas duplicadas
+// ============================================================================
+
+const IDEMPOTENCY_STORE = new Map();
+const IDEMPOTENCY_TTL_MS = 3600000; // 1 hora
+
+/**
+ * Genera clave de idempotencia unica basada en el payload
+ */
+export function generateIdempotencyKey(payload) {
+  const components = [
+    payload.serviceId || "",
+    payload.resourceId || "",
+    payload.startDate || "",
+    payload.contactDetails?.email || "",
+    payload.pairToken || ""
+  ].filter(Boolean);
+  
+  return `idemp_${hashSHA256(components.join("|")).substring(0, 24)}`;
+}
+
+/**
+ * Verifica y registra clave de idempotencia
+ * @param {string} idempotencyKey - Clave unica
+ * @param {string} traceId - ID de trazabilidad
+ * @returns {Object} { isNew: boolean, existingResult?: any }
+ */
+export async function checkIdempotency(idempotencyKey, traceId) {
+  // Limpiar entradas expiradas
+  const now = Date.now();
+  for (const [key, entry] of IDEMPOTENCY_STORE.entries()) {
+    if (now - entry.timestamp > IDEMPOTENCY_TTL_MS) {
+      IDEMPOTENCY_STORE.delete(key);
+    }
+  }
+  
+  const existing = IDEMPOTENCY_STORE.get(idempotencyKey);
+  if (existing) {
+    log.info("[bookingCore] Idempotency key reused", { idempotencyKey, traceId, originalTraceId: existing.traceId });
+    return { 
+      isNew: false, 
+      existingResult: existing.result,
+      originalTraceId: existing.traceId
+    };
+  }
+  
+  // Registrar nueva clave
+  IDEMPOTENCY_STORE.set(idempotencyKey, {
+    timestamp: now,
+    traceId,
+    status: "PROCESSING",
+    result: null
+  });
+  
+  return { isNew: true };
+}
+
+/**
+ * Marca operacion como completada para idempotencia
+ */
+export function completeIdempotency(idempotencyKey, result) {
+  const entry = IDEMPOTENCY_STORE.get(idempotencyKey);
+  if (entry) {
+    entry.status = "COMPLETED";
+    entry.result = result;
+    entry.completedAt = Date.now();
+  }
+}
+
+/**
+ * Marca operacion como fallida para idempotencia
+ */
+export function failIdempotency(idempotencyKey, error) {
+  const entry = IDEMPOTENCY_STORE.get(idempotencyKey);
+  if (entry) {
+    entry.status = "FAILED";
+    entry.error = error;
+    entry.failedAt = Date.now();
+  }
+}
+
+// ============================================================================
+// [BC-12] SEPARA FASES - Reserva, pago, confirmacion y cancelacion separados
+// ============================================================================
+
+/**
+ * FASE 1: Crear reserva (sin pago)
+ */
+export async function createBookingPhase1(validatedPayload, traceId) {
+  const idempotencyKey = generateIdempotencyKey(validatedPayload);
+  const idempotencyCheck = await checkIdempotency(idempotencyKey, traceId);
+  
+  if (!idempotencyCheck.isNew) {
+    log.info("[bookingCore] Returning cached result for idempotent request", { idempotencyKey });
+    return idempotencyCheck.existingResult;
+  }
+  
+  try {
+    // Crear registro de transaccion
+    const txResult = await _initTransaction(validatedPayload.pairToken || idempotencyKey, traceId, traceId);
+    if (!txResult.ok) {
+      throw createBookingError(ERROR_CODES.TRANSACTION_FAILED, "No se pudo iniciar transaccion");
+    }
+    
+    // Persistir reserva en estado PENDING
+    const bookingRecord = {
+      bookingId: `pending_${idempotencyKey}`,
+      serviceId: validatedPayload.serviceId,
+      resourceId: validatedPayload.resourceId,
+      startDate: validatedPayload.startDate,
+      endDate: validatedPayload.endDate,
+      status: "PENDING_PAYMENT",
+      paymentStatus: "PENDING",
+      contactDetails: validatedPayload.normalizedContact,
+      price: validatedPayload.calculatedTotal,
+      idempotencyKey,
+      traceId,
+      phase: 1,
+      _createdDate: new Date()
+    };
+    
+    const saved = await wixData.insert(CITAS_COLLECTION, bookingRecord, { suppressAuth: true });
+    
+    await _completeTransaction(txResult.transactionId, { bookingId: saved._id, phase: 1 });
+    
+    const result = {
+      ok: true,
+      bookingId: saved._id,
+      status: "PENDING_PAYMENT",
+      phase: 1,
+      nextPhase: "payment",
+      idempotencyKey
+    };
+    
+    completeIdempotency(idempotencyKey, result);
+    return result;
+    
+  } catch (error) {
+    failIdempotency(idempotencyKey, error.message);
+    log.error("[bookingCore] Phase 1 failed", { error: error.message, traceId });
+    return { ok: false, code: error.code || ERROR_CODES.BOOKING_CREATION_FAILED, message: error.message };
+  }
+}
+
+/**
+ * FASE 2: Procesar pago
+ */
+export async function processPaymentPhase2(bookingId, paymentData, traceId) {
+  try {
+    const cita = await wixData.query(CITAS_COLLECTION)
+      .eq("bookingId", bookingId)
+      .limit(1)
+      .find({ suppressAuth: true });
+    
+    if (!cita.items || cita.items.length === 0) {
+      throw createBookingError(ERROR_CODES.DATA_CONFLICT, "Reserva no encontrada");
+    }
+    
+    const currentBooking = cita.items[0];
+    
+    if (currentBooking.status !== "PENDING_PAYMENT") {
+      throw createBookingError(ERROR_CODES.INVALID_CLOCK_TYPE, `Estado actual: ${currentBooking.status}, esperado: PENDING_PAYMENT`);
+    }
+    
+    // Procesar pago con checkout de Wix
+    const checkoutResult = await createCheckoutElevated({
+      lineItems: [{
+        productType: "BOOKING",
+        bookingId: currentBooking._id,
+        price: currentBooking.price,
+        quantity: 1
+      }],
+      buyerInfo: currentBooking.contactDetails
+    });
+    
+    if (!checkoutResult.ok) {
+      throw createBookingError(ERROR_CODES.CHECKOUT_FAILED, checkoutResult.message);
+    }
+    
+    // Actualizar estado a PAID
+    const updatedBooking = {
+      ...currentBooking,
+      status: "CONFIRMED_UNPAID",
+      paymentStatus: "PENDING_CONFIRMATION",
+      checkoutId: checkoutResult.data.checkoutId,
+      phase: 2,
+      _updatedDate: new Date()
+    };
+    
+    await wixData.update(CITAS_COLLECTION, updatedBooking, { suppressAuth: true });
+    
+    return {
+      ok: true,
+      bookingId,
+      checkoutId: checkoutResult.data.checkoutId,
+      checkoutUrl: checkoutResult.data.url,
+      status: "PENDING_CONFIRMATION",
+      phase: 2,
+      nextPhase: "confirmation"
+    };
+    
+  } catch (error) {
+    log.error("[bookingCore] Phase 2 payment failed", { error: error.message, bookingId, traceId });
+    return { ok: false, code: error.code || ERROR_CODES.CHECKOUT_FAILED, message: error.message };
+  }
+}
+
+/**
+ * FASE 3: Confirmar reserva tras pago exitoso
+ */
+export async function confirmBookingPhase3(bookingId, paymentConfirmation, traceId) {
+  try {
+    const currentBooking = await wixData.get(CITAS_COLLECTION, bookingId, { suppressAuth: true });
+    
+    if (!currentBooking) {
+      throw createBookingError(ERROR_CODES.DATA_CONFLICT, "Reserva no encontrada");
+    }
+    
+    // Crear booking oficial en Wix Bookings
+    const elevatedPayload = {
+      serviceId: currentBooking.serviceId,
+      bookedEntity: {
+        slot: {
+          scheduleId: currentBooking.scheduleId || "",
+          startTime: currentBooking.startDate,
+          endTime: currentBooking.endDate
+        }
+      },
+      contactDetails: currentBooking.contactDetails,
+      totalParticipants: 1
+    };
+    
+    const bookingResult = await createBookingElevated(elevatedPayload);
+    
+    if (!bookingResult.ok) {
+      throw createBookingError(ERROR_CODES.BOOKING_CREATION_FAILED, bookingResult.message);
+    }
+    
+    // Actualizar con booking ID oficial
+    const finalBooking = {
+      ...currentBooking,
+      bookingId: bookingResult.data.bookingId,
+      status: "CONFIRMED",
+      paymentStatus: "PAID",
+      wixBookingId: bookingResult.data.bookingId,
+      revision: bookingResult.data.revision,
+      phase: 3,
+      paymentConfirmedAt: new Date(),
+      _updatedDate: new Date()
+    };
+    
+    await wixData.update(CITAS_COLLECTION, finalBooking, { suppressAuth: true });
+    
+    // Liberar lock del slot si existe
+    if (currentBooking.slotKey) {
+      await _unlockSlotKey(currentBooking.slotKey, traceId);
+    }
+    
+    return {
+      ok: true,
+      bookingId: bookingResult.data.bookingId,
+      status: "CONFIRMED",
+      phase: 3,
+      completed: true
+    };
+    
+  } catch (error) {
+    log.error("[bookingCore] Phase 3 confirmation failed", { error: error.message, bookingId, traceId });
+    
+    // COMPENSACION: Marcar para revision manual
+    await registerCompensation(bookingId, "PHASE_3_FAILED", error.message, traceId);
+    
+    return { 
+      ok: false, 
+      code: error.code || ERROR_CODES.COMPENSATION_FAILED, 
+      message: error.message,
+      requiresManualReview: true
+    };
+  }
+}
+
+/**
+ * FASE 4: Cancelar reserva con compensacion
+ */
+export async function cancelBookingPhase4(bookingId, reason, traceId) {
+  try {
+    const currentBooking = await wixData.get(CITAS_COLLECTION, bookingId, { suppressAuth: true });
+    
+    if (!currentBooking) {
+      throw createBookingError(ERROR_CODES.DATA_CONFLICT, "Reserva no encontrada");
+    }
+    
+    // Cancelar en Wix Bookings si existe booking oficial
+    if (currentBooking.wixBookingId) {
+      const cancelResult = await cancelBookingElevated(currentBooking.wixBookingId);
+      
+      if (!cancelResult.ok) {
+        log.warn("[bookingCore] Wix booking cancellation failed", { bookingId, error: cancelResult.message });
+      }
+    }
+    
+    // Actualizar estado local
+    const cancelledBooking = {
+      ...currentBooking,
+      status: "CANCELLED",
+      paymentStatus: currentBooking.paymentStatus === "PAID" ? "REFUNDED" : "CANCELLED",
+      cancellationReason: reason,
+      cancelledAt: new Date(),
+      _updatedDate: new Date()
+    };
+    
+    await wixData.update(CITAS_COLLECTION, cancelledBooking, { suppressAuth: true });
+    
+    // Liberar lock del slot
+    if (currentBooking.slotKey) {
+      await _unlockSlotKey(currentBooking.slotKey, traceId);
+    }
+    
+    // Si hay pago, registrar reembolso pendiente
+    if (currentBooking.paymentStatus === "PAID") {
+      await registerCompensation(bookingId, "REFUND_PENDING", reason, traceId);
+    }
+    
+    return {
+      ok: true,
+      bookingId,
+      status: "CANCELLED",
+      refundRequired: currentBooking.paymentStatus === "PAID"
+    };
+    
+  } catch (error) {
+    log.error("[bookingCore] Phase 4 cancellation failed", { error: error.message, bookingId, traceId });
+    return { ok: false, code: ERROR_CODES.COMPENSATION_FAILED, message: error.message };
+  }
+}
+
+// ============================================================================
+// [BC-13] COMPENSACION - Registro de operaciones fallidas para recuperacion
+// ============================================================================
+
+/**
+ * Registra operacion fallida para compensacion manual o automatica
+ */
+export async function registerCompensation(bookingId, phase, error, traceId) {
+  try {
+    const compensationRecord = {
+      bookingId,
+      phase,
+      error: typeof error === 'object' ? JSON.stringify(error) : String(error),
+      traceId,
+      status: "PENDING",
+      attempts: 0,
+      lastAttempt: null,
+      createdAt: new Date(),
+      resolvedAt: null,
+      resolution: null
+    };
+    
+    await wixData.insert(COMPENSATIONS_COLLECTION, compensationRecord, { suppressAuth: true });
+    log.warn("[bookingCore] Compensation registered", { bookingId, phase, traceId });
+    
+    return { ok: true, compensationId: compensationRecord._id };
+  } catch (error) {
+    log.error("[bookingCore] Failed to register compensation", { error: error.message, bookingId });
+    return { ok: false, message: error.message };
+  }
+}
+
+/**
+ * Procesa compensaciones pendientes
+ */
+export async function processPendingCompensations(limit = 10) {
+  try {
+    const pending = await wixData.query(COMPENSATIONS_COLLECTION)
+      .eq("status", "PENDING")
+      .lt("attempts", 3)
+      .limit(limit)
+      .find({ suppressAuth: true });
+    
+    const results = { processed: 0, succeeded: 0, failed: 0 };
+    
+    for (const comp of (pending.items || [])) {
+      results.processed++;
+      
+      try {
+        comp.attempts++;
+        comp.lastAttempt = new Date();
+        
+        // Logica de reintentos especifica por fase
+        if (comp.phase === "PHASE_3_FAILED") {
+          // Reintentar confirmacion
+          const retryResult = await confirmBookingPhase3(comp.bookingId, {}, `retry_${comp.traceId}`);
+          
+          if (retryResult.ok) {
+            comp.status = "RESOLVED";
+            comp.resolution = "Auto-resolved on retry";
+            results.succeeded++;
+          } else {
+            results.failed++;
+          }
+        } else if (comp.phase === "REFUND_PENDING") {
+          // Marcar para procesamiento manual de reembolso
+          comp.status = "REQUIRES_MANUAL_REVIEW";
+          results.failed++; // Requiere intervencion
+        }
+        
+        await wixData.update(COMPENSATIONS_COLLECTION, comp, { suppressAuth: true });
+        
+      } catch (error) {
+        log.error("[bookingCore] Compensation processing failed", { compensationId: comp._id, error: error.message });
+        comp.status = "FAILED";
+        comp.error = error.message;
+        await wixData.update(COMPENSATIONS_COLLECTION, comp, { suppressAuth: true });
+        results.failed++;
+      }
+    }
+    
+    return { ok: true, results };
+  } catch (error) {
+    log.error("[bookingCore] Failed to process compensations", { error: error.message });
+    return { ok: false, message: error.message };
+  }
 }

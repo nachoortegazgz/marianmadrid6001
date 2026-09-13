@@ -1,3 +1,83 @@
 {
-  "extends": ["plugin:@wix/cli/recommended"]
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "module",
+    "project": "./tsconfig.json"
+  },
+  "plugins": [
+    "@typescript-eslint",
+    "@wix/cli"
+  ],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:@wix/cli/recommended"
+  ],
+  "env": {
+    "node": true,
+    "es2020": true
+  },
+  "rules": {
+    "no-console": "warn",
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": ["warn", { 
+      "argsIgnorePattern": "^_",
+      "varsIgnorePattern": "^_"
+    }],
+    "@typescript-eslint/explicit-function-return-type": "off",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "strict": ["error", "global"],
+    "no-constant-condition": "error",
+    "no-debugger": "error",
+    "no-duplicate-imports": "error",
+    "no-empty": "error",
+    "no-eval": "error",
+    "no-implied-eval": "error",
+    "no-multi-str": "error",
+    "no-new-func": "error",
+    "no-return-await": "warn",
+    "no-template-curly-in-string": "error",
+    "no-unsafe-finally": "error",
+    "no-useless-catch": "error",
+    "require-atomic-updates": "error",
+    "valid-typeof": "error",
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
+    "curly": ["error", "all"],
+    "no-var": "error",
+    "prefer-const": "warn",
+    "prefer-arrow-callback": "warn",
+    "arrow-body-style": ["warn", "as-needed"]
+  },
+  "overrides": [
+    {
+      "files": ["src/backend/**/*.js", "src/backend/**/*.ts"],
+      "rules": {
+        "no-console": "off",
+        "@typescript-eslint/no-var-requires": "off"
+      }
+    },
+    {
+      "files": ["src/pages/**/*.js", "src/pages/**/*.ts"],
+      "rules": {
+        "no-console": "warn"
+      }
+    },
+    {
+      "files": ["*.js"],
+      "rules": {
+        "@typescript-eslint/no-var-requires": "off",
+        "@typescript-eslint/explicit-function-return-type": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "node_modules/",
+    "dist/",
+    "build/",
+    "*.min.js",
+    "src/backend/.types/",
+    "coverage/"
+  ]
 }
