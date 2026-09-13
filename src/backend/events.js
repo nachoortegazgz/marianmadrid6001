@@ -67,7 +67,7 @@ function validateEventStructure(event, requiredFields) {
 
 // [EVENTS-07] VERIFICAR SI EVENTO YA FUE PROCESADO (IDEMPOTENCIA)
 async function isEventProcessed(eventId) {
-  if (!eventId) return false;
+  if (!eventId) {return false;}
   
   const normalizedId = _normalizeIdPart(String(eventId), 100);
   const existing = await wixData.get(PROCESSED_EVENTS_COL, normalizedId, { suppressAuth: true })
@@ -78,7 +78,7 @@ async function isEventProcessed(eventId) {
 
 // [EVENTS-08] REGISTRAR EVENTO PROCESADO
 async function markEventAsProcessed(eventId, eventType, traceId, metadata = {}) {
-  if (!eventId) return;
+  if (!eventId) {return;}
   
   const normalizedId = _normalizeIdPart(String(eventId), 100);
   const expiryDate = new Date(Date.now() + EVENT_TTL_HOURS * 3600 * 1000);
@@ -171,7 +171,7 @@ for (const bookingId of ids) {
 await _updateCitaSafe(bookingId, (cita) => {
 const meta = cita.meta || {};
 const alreadyPaid = String(meta.paymentStatus || cita.paymentStatus || "").toUpperCase() === ESTADO_PAGO.PAID;
-if (alreadyPaid) return null;
+if (alreadyPaid) {return null;}
 return {
 ...cita,
 [CITA_FIELDS.STATUS]: ESTADO_CITA.CONFIRMED,
@@ -192,7 +192,7 @@ for (const bookingId of ids) {
 await _updateCitaSafe(bookingId, (cita) => {
 const meta = cita.meta || {};
 const currentPaymentState = String(meta.paymentStatus || cita.paymentStatus || "").toUpperCase();
-if (currentPaymentState === ESTADO_PAGO.PAID) return null;
+if (currentPaymentState === ESTADO_PAGO.PAID) {return null;}
 return {
 ...cita,
 [CITA_FIELDS.STATUS_PAGO]: ESTADO_PAGO.PENDING_LEDGER,
@@ -279,11 +279,11 @@ const traceId = makeTraceId("whook-pay-status");
 try {
 const order = event?.order || event?.data?.order || event?.entity || event || {};
 const orderId = String(order?._id || order?.id || "").trim();
-if (!orderId || orderId === "unknown") return { status: "OK" };
+if (!orderId || orderId === "unknown") {return { status: "OK" };}
 const paymentStatusRaw = order.paymentStatus || "";
 const paymentStatus = String(paymentStatusRaw).toUpperCase();
 const isPaidStatus = ["PAID", "FULLY_PAID", "PAID_FULL"].includes(paymentStatus);
-if (!isPaidStatus) return { status: "OK" };
+if (!isPaidStatus) {return { status: "OK" };}
 const lineItems = Array.isArray(order.lineItems) ? order.lineItems : [];
 await recordOnlineInventoryOrderInternal(order, traceId).catch((inventoryError) => {
 log.error("Online inventory mirror failed", {
@@ -392,12 +392,12 @@ const traceId = makeTraceId("whook-refund");
 try {
 const orderId = String(event?.orderId || event?.order?._id || "").trim() || "unknown";
 const refundObj = event?.refund || event?.data?.refund || null;
-if (!refundObj || orderId === "unknown") return { status: "OK" };
+if (!refundObj || orderId === "unknown") {return { status: "OK" };}
 const rawAmount = typeof refundObj?.amount === "object" && refundObj?.amount !== null ?
 refundObj.amount.amount :
 refundObj?.amount ?? 0;
 const refundAmount = Number(rawAmount) || 0;
-if (refundAmount <= 0) return { status: "OK" };
+if (refundAmount <= 0) {return { status: "OK" };}
 const refundId = String(refundObj?._id || refundObj?.id || "").trim();
 if (!refundId) {
 await _logAuditEvent(

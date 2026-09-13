@@ -57,17 +57,19 @@ const getOrderElevated = elevate(orders.getOrder);
 
 function _getCitaMeta(cita) {
   const meta = cita?.meta;
-  if (meta && typeof meta === "object") return meta;
+  if (meta && typeof meta === "object") {return meta;}
   if (typeof meta === "string") {
     try {
       return JSON.parse(meta) || {};
-    } catch (_) {}
+    } catch (_) {
+      // Intentionally empty: invalid JSON returns default {}
+    }
   }
   return {};
 }
 
 function _getNativeAddonIdsForRevalidation(cita) {
-  if (String(cita?.bookingType || "") === "dual_fase2") return [];
+  if (String(cita?.bookingType || "") === "dual_fase2") {return [];}
   const bookedAddOns = Array.isArray(_getCitaMeta(cita).nativeBookedAddOns) ? _getCitaMeta(cita).nativeBookedAddOns : [];
   return Array.from(new Set(
     bookedAddOns
@@ -78,14 +80,14 @@ function _getNativeAddonIdsForRevalidation(cita) {
 
 async function _findCitaByBookingId(bookingId) {
   const clean = String(bookingId || "").trim();
-  if (!clean) return null;
+  if (!clean) {return null;}
   try {
     const q = await withTimeout(
       wixData.query(CITAS_COLLECTION).eq("bookingId", clean).limit(1).find({ suppressAuth: true, consistentRead: true, skipCache: true }),
       API_TIMEOUT_MS,
       "findCitaByBookingIdQuery"
     ).catch(() => null);
-    if (q?.items?.length) return q.items[0];
+    if (q?.items?.length) {return q.items[0];}
     const byId = await withTimeout(
       wixData.get(CITAS_COLLECTION, clean, { suppressAuth: true, consistentRead: true, skipCache: true }),
       API_TIMEOUT_MS,
@@ -124,9 +126,9 @@ async function _logAuditEvent(tipoEvento, level, message, data = {}, traceId) {
 export const processDualBooking = webMethod(Permissions.Anyone, async (unsafePayload) => {
   const traceId = makeTraceId("booking-wrapper");
   try {
-    if (!unsafePayload || typeof unsafePayload !== "object") throw new Error("Invalid booking payload");
-    if (!unsafePayload.cliente || typeof unsafePayload.cliente !== "object") throw new Error("Client information required");
-    if (!unsafePayload.metaCita || typeof unsafePayload.metaCita !== "object") throw new Error("Booking metadata required");
+    if (!unsafePayload || typeof unsafePayload !== "object") {throw new Error("Invalid booking payload");}
+    if (!unsafePayload.cliente || typeof unsafePayload.cliente !== "object") {throw new Error("Client information required");}
+    if (!unsafePayload.metaCita || typeof unsafePayload.metaCita !== "object") {throw new Error("Booking metadata required");}
     const slotF1 = unsafePayload.slotF1 || {};
     const slotF2 = unsafePayload.slotF2 || null;
     const metaCita = unsafePayload.metaCita;
@@ -199,7 +201,7 @@ async function _getValidatedPaidOrder(orderId, bookingIds, requestedTotalAmount)
     throw new Error("ORDER_BOOKING_MISMATCH");
   }
   const verifiedAmount = _getBookingLineItemsTotal(bookingLineItems);
-  if (!(verifiedAmount > 0)) throw new Error("ORDER_BOOKING_AMOUNT_INVALID");
+  if (!(verifiedAmount > 0)) {throw new Error("ORDER_BOOKING_AMOUNT_INVALID");}
   const requestedAmount = Number(requestedTotalAmount);
   if (Number.isFinite(requestedAmount) && requestedAmount > 0 && Math.abs(requestedAmount - verifiedAmount) > 0.009) {
     throw new Error("ORDER_AMOUNT_MISMATCH");
@@ -211,8 +213,8 @@ function _validatePaymentCitaSet(citas, orderId) {
   const items = Array.isArray(citas) ? citas : [];
   const isDual = items.some((cita) => Boolean(_getCitaMeta(cita).esCombinado) || String(cita?.bookingType || "").startsWith("dual"));
   const pairTokens = Array.from(new Set(items.map((cita) => _safeTrim(cita?.pairToken || _getCitaMeta(cita).pairToken)).filter(Boolean)));
-  if (isDual && (items.length !== 2 || pairTokens.length !== 1)) throw new Error("DUAL_PAYMENT_PAIR_INVALID");
-  if (!isDual && items.length !== 1) throw new Error("PAYMENT_BOOKING_SET_INVALID");
+  if (isDual && (items.length !== 2 || pairTokens.length !== 1)) {throw new Error("DUAL_PAYMENT_PAIR_INVALID");}
+  if (!isDual && items.length !== 1) {throw new Error("PAYMENT_BOOKING_SET_INVALID");}
   // [M-01] [M-02] Usa solo CITA_FIELDS.STATUS_PAGO
   const paidStates = items.map((cita) => String(cita[CITA_FIELDS.STATUS_PAGO] || _getCitaMeta(cita)[CITA_FIELDS.STATUS_PAGO] || "").toUpperCase());
   const allPaid = paidStates.length > 0 && paidStates.every((state) => state === ESTADO_PAGO.PAID);
@@ -357,7 +359,7 @@ export const rescheduleExistingBooking = webMethod(Permissions.SiteMember, async
       }
     }
     let rev = Number(revision) || 0;
-    if (!rev) rev = Number(citaExistente?.revision || 1) || 1;
+    if (!rev) {rev = Number(citaExistente?.revision || 1) || 1;}
     const slotObj = newSlot?.slot || newSlot;
     const serviceId = _extractRelationalId(citaExistente.serviceId);
     const requestedServiceId = _extractRelationalId(slotObj.serviceId || slotObj?.slot?.serviceId || "");
@@ -447,13 +449,13 @@ export const rescheduleExistingBooking = webMethod(Permissions.SiteMember, async
 
 function _getDualSlotInput(payload, key) {
   const slot = key === "F1" ? payload?.slotF1 : payload?.slotF2;
-  if (!slot || typeof slot !== "object") return null;
+  if (!slot || typeof slot !== "object") {return null;}
   return slot.slotRef || slot.slot || slot;
 }
 
 function _matchesCitaPairIdentifier(cita, token) {
   const expected = _safeTrim(token);
-  if (!expected) return false;
+  if (!expected) {return false;}
   return [
     cita?.pairToken,
     cita?.uiPairToken,
@@ -467,7 +469,7 @@ function _getBookingSlotFromCita(cita) {
   const resourceId = _safeTrim(cita?.resourceId);
   const startDate = cita?.startDate;
   const endDate = cita?.endDate;
-  if (!serviceId || !resourceId || !startDate || !endDate) return null;
+  if (!serviceId || !resourceId || !startDate || !endDate) {return null;}
   return {
     serviceId: serviceId,
     scheduleId: _safeTrim(cita?.scheduleId),
@@ -483,18 +485,18 @@ async function _buildDualRescheduleSlot(cita, inputSlot, expectedServiceId) {
   const rawSlot = inputSlot?.slot || inputSlot;
   const resourceId = _safeTrim(rawSlot?.resourceId || rawSlot?.resource?._id || rawSlot?.resource?.id || "");
   const canonicalServiceId = _extractRelationalId(expectedServiceId || "");
-  if (!resourceId || !_looksLikeGuid(canonicalServiceId)) throw new Error("DUAL_RESCHEDULE_SLOT_ID_INVALID");
+  if (!resourceId || !_looksLikeGuid(canonicalServiceId)) {throw new Error("DUAL_RESCHEDULE_SLOT_ID_INVALID");}
   const pristine = await _projectWriterSlotFromAvailability(rawSlot, resourceId, canonicalServiceId);
-  if (!pristine) throw new Error("DUAL_RESCHEDULE_SLOT_INVALID");
+  if (!pristine) {throw new Error("DUAL_RESCHEDULE_SLOT_INVALID");}
   return pristine;
 }
 
 async function _assertBookingOwner(cita, traceId) {
   const memberIsAdmin = await isAdmin(traceId).catch(() => false);
-  if (memberIsAdmin) return;
+  if (memberIsAdmin) {return;}
   const { currentMember } = await import("wix-members-backend");
   const member = await currentMember.getMember({ fieldsets: ["FULL"] }).catch(() => null);
-  if (!member) throw new Error("ACCESS_DENIED_DUAL_RESCHEDULE");
+  if (!member) {throw new Error("ACCESS_DENIED_DUAL_RESCHEDULE");}
   const memberId = _safeTrim(member._id || member.id);
   const memberEmail = member?.loginEmail ? _safeEmail(member.loginEmail) : "";
   const citaMemberId = _safeTrim(cita?.contactDetails?.contactId || cita?.contactDetails?.memberId || cita?._owner || "");
@@ -596,12 +598,12 @@ export const rescheduleDualBookings = webMethod(Permissions.SiteMember, async (p
     const uniqueKeys = Array.from(new Set(lockKeys)).sort();
     for (const key of uniqueKeys) {
       const lock = await _lockSlotKeyOrFail(key, lockOwnerId, Number(CONCURRENCY?.MUTEX_TTL_MS) || 300000);
-      if (!lock?.ok) throw new Error(lock?.message || "DUAL_RESCHEDULE_LOCK_BUSY");
+      if (!lock?.ok) {throw new Error(lock?.message || "DUAL_RESCHEDULE_LOCK_BUSY");}
     }
     heartbeatInterval = setInterval(() => {
       Promise.all(uniqueKeys.map((key) => _renewLock(key, lockOwnerId, Number(CONCURRENCY?.MUTEX_TTL_MS) || 300000)))
         .then((results) => {
-          if (results.some((result) => !result?.ok)) lockLeaseLost = true;
+          if (results.some((result) => !result?.ok)) {lockLeaseLost = true;}
         })
         .catch(() => {
           lockLeaseLost = true;
@@ -609,7 +611,7 @@ export const rescheduleDualBookings = webMethod(Permissions.SiteMember, async (p
     }, Number(CONCURRENCY?.HEARTBEAT_MS) || 15000);
     const revisionF1 = Number(citaF1.revision || 1) || 1;
     const revisionF2 = Number(citaF2.revision || 1) || 1;
-    if (lockLeaseLost) throw new Error("DUAL_RESCHEDULE_LOCK_LEASE_LOST");
+    if (lockLeaseLost) {throw new Error("DUAL_RESCHEDULE_LOCK_LEASE_LOST");}
     const resultF1 = await _executeWithRetry(
       () => withTimeout(
         rescheduleBookingElevated(citaF1.bookingId, pristineF1, {
@@ -625,7 +627,7 @@ export const rescheduleDualBookings = webMethod(Permissions.SiteMember, async (p
     const revisedF1 = Number(resultF1?.booking?.revision || resultF1?.revision || revisionF1) || revisionF1;
     let resultF2;
     try {
-      if (lockLeaseLost) throw new Error("DUAL_RESCHEDULE_LOCK_LEASE_LOST");
+      if (lockLeaseLost) {throw new Error("DUAL_RESCHEDULE_LOCK_LEASE_LOST");}
       resultF2 = await _executeWithRetry(
         () => withTimeout(
           rescheduleBookingElevated(citaF2.bookingId, pristineF2, {
@@ -700,7 +702,7 @@ export const rescheduleDualBookings = webMethod(Permissions.SiteMember, async (p
     log.error("rescheduleDualBookings failed", { traceId, message: error?.message });
     return _handleError(error, { surface: "rescheduleDualBookings", traceId });
   } finally {
-    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    if (heartbeatInterval) {clearInterval(heartbeatInterval);}
     // SSOT v5002.4: _bestEffortUnlockAll in finally block for guaranteed cleanup
     if (lockKeys && lockKeys.length > 0) {
       await _bestEffortUnlockAll(lockKeys, lockOwnerId).catch(() => {});

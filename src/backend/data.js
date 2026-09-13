@@ -23,7 +23,7 @@ const SHA256_HEX_RE = /^[0-9a-f]{64}$/i;
 const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function _toDate(value) {
-  if (!value) return null;
+  if (!value) {return null;}
   const date = value instanceof Date ? value : new Date(value);
   return isNaN(date.getTime()) ? null : date;
 }
@@ -41,7 +41,7 @@ function _normalizeCatalogReference(value) {
 }
 
 function _normalizeBoundedText(item, field, maxLength) {
-  if (item[field] === undefined || item[field] === null) return;
+  if (item[field] === undefined || item[field] === null) {return;}
   const normalized = String(item[field]).trim();
   if (normalized.length > maxLength) {
     throw new Error(`SERVICE_VALIDATION: ${field} exceeds the permitted length.`);
@@ -51,7 +51,7 @@ function _normalizeBoundedText(item, field, maxLength) {
 
 function _readDuration(item, field) {
   const raw = item[field];
-  if (raw === undefined || raw === null || raw === "") return 0;
+  if (raw === undefined || raw === null || raw === "") {return 0;}
   const value = Number(raw);
   if (!Number.isFinite(value) || value < 0 || value > (SERVICE_CATALOG?.MAX_DURATION_MINUTES || 1440)) {
     throw new Error(`SERVICE_VALIDATION: ${field} must be between 0 and ${SERVICE_CATALOG?.MAX_DURATION_MINUTES || 1440}.`);
@@ -60,7 +60,7 @@ function _readDuration(item, field) {
 }
 
 function _validateServiciosCatalogo(item, context) {
-  if (!item || typeof item !== "object" || context?.suppressHooks === true) return item;
+  if (!item || typeof item !== "object" || context?.suppressHooks === true) {return item;}
   _normalizeBoundedText(item, "title", SERVICE_CATALOG?.MAX_TITLE_LENGTH || 160);
   _normalizeBoundedText(item, "tagLine", SERVICE_CATALOG?.MAX_SUMMARY_LENGTH || 120);
   _normalizeBoundedText(item, "description", SERVICE_CATALOG?.MAX_DESCRIPTION_LENGTH || 6000);
@@ -118,20 +118,20 @@ export function ServiciosCatalogo_beforeUpdate(item, context) {
 }
 
 function _validateMapaStaff(item, context) {
-  if (!item || typeof item !== "object" || context?.suppressHooks === true) return item;
+  if (!item || typeof item !== "object" || context?.suppressHooks === true) {return item;}
   const resourceId = String(item.resourceId || "").trim();
-  if (!GUID_RE.test(resourceId)) throw new Error("STAFF_VALIDATION: resourceId must be a valid Bookings resource GUID.");
+  if (!GUID_RE.test(resourceId)) {throw new Error("STAFF_VALIDATION: resourceId must be a valid Bookings resource GUID.");}
   item.resourceId = resourceId;
   _normalizeBoundedText(item, "displayName", 80);
-  if (!item.displayName) throw new Error("STAFF_VALIDATION: displayName is required.");
+  if (!item.displayName) {throw new Error("STAFF_VALIDATION: displayName is required.");}
   _normalizeBoundedText(item, "staffMemberId", 120);
   _normalizeBoundedText(item, "email", 254);
   _normalizeBoundedText(item, "scheduleId", 120);
   _normalizeBoundedText(item, "rol", 60);
-  if (item.email) item.email = item.email.toLowerCase();
-  if (!item.staffMemberId && !item.email) throw new Error("STAFF_VALIDATION: staffMemberId or email is required.");
+  if (item.email) {item.email = item.email.toLowerCase();}
+  if (!item.staffMemberId && !item.email) {throw new Error("STAFF_VALIDATION: staffMemberId or email is required.");}
   // SSOT v5002.4: Validate uniqueness of resourceId + staffMemberId combination
-  if (!item.staffMemberId) throw new Error("STAFF_VALIDATION: staffMemberId is required for uniqueness validation.");
+  if (!item.staffMemberId) {throw new Error("STAFF_VALIDATION: staffMemberId is required for uniqueness validation.");}
   item.active = item.active !== false;
   item.updatedAt = new Date();
   return item;
@@ -146,9 +146,9 @@ export function MapaStaff_beforeUpdate(item, context) {
 }
 
 export function CitasF2_beforeInsert(item, context) {
-  if (!item || typeof item !== "object" || context?.suppressHooks === true) return item;
+  if (!item || typeof item !== "object" || context?.suppressHooks === true) {return item;}
   const bookingId = String(item.bookingId || "").trim();
-  if (!bookingId) throw new Error("CITAS_VIOLATION: Missing bookingId.");
+  if (!bookingId) {throw new Error("CITAS_VIOLATION: Missing bookingId.");}
   item.bookingId = bookingId;
   const now = new Date();
   _normalizeDateField(item, "startDate", null);
@@ -166,9 +166,9 @@ export function CitasF2_beforeInsert(item, context) {
 }
 
 export function CitasF2_beforeUpdate(item, context) {
-  if (!item || typeof item !== "object" || context?.suppressHooks === true) return item;
+  if (!item || typeof item !== "object" || context?.suppressHooks === true) {return item;}
   const bookingId = String(item.bookingId || "").trim();
-  if (!bookingId) throw new Error("CITAS_VIOLATION: Missing bookingId.");
+  if (!bookingId) {throw new Error("CITAS_VIOLATION: Missing bookingId.");}
   item.bookingId = bookingId;
   const now = new Date();
   _normalizeDateField(item, "startDate", null);
@@ -190,7 +190,7 @@ export function CitasF2_beforeUpdate(item, context) {
 }
 
 export function MovimientosCaja_beforeInsert(item, context) {
-  if (!item || typeof item !== "object") return item;
+  if (!item || typeof item !== "object") {return item;}
   if (!SHA256_HEX_RE.test(String(item.currentRecordHash || "").trim())) {
     throw new Error("FISCAL_VIOLATION: Missing or invalid hashCadena format.");
   }
@@ -217,7 +217,7 @@ export function MovimientosCaja_beforeRemove(_itemId) {
 }
 
 export async function RegistrosHorariosStaff_beforeInsert(item, context) {
-  if (!item || typeof item !== "object") return item;
+  if (!item || typeof item !== "object") {return item;}
   const staff = await findStaff(item.resourceId);
   if (!staff) {
     throw new Error("INVALID_EMPLOYEE: Employee resourceId is not registered in MAPA_STAFF.");
@@ -270,12 +270,12 @@ export function EventosSistemaFacturacion_beforeRemove(_itemId) {
 }
 
 export function CajaActual_beforeInsert(item) {
-  if (item && typeof item === "object") item._id = CAJA_ACTUAL_SINGLETON_ID;
+  if (item && typeof item === "object") {item._id = CAJA_ACTUAL_SINGLETON_ID;}
   return item;
 }
 
 export function CajaActual_beforeUpdate(item) {
-  if (item && typeof item === "object") item._id = CAJA_ACTUAL_SINGLETON_ID;
+  if (item && typeof item === "object") {item._id = CAJA_ACTUAL_SINGLETON_ID;}
   return item;
 }
 

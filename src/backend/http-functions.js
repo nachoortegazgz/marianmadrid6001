@@ -11,8 +11,7 @@ import { SECRETS } from "backend/mmSecrets";
 import { makeTraceId, _safeTrim, _safeSlugOrId, _looksLikeGuid } from "public/mmUtils";
 import { hmacSha256Hex, timingSafeEqual } from "backend/securityEngine";
 import { _getServiceBySlugOrIdInternal } from "backend/reservas.web";
-import { logger } from "backend/booking/bookingCore";
-import { cancelBookingElevated } from "backend/booking/bookingCore";
+import { logger, cancelBookingElevated } from "backend/booking/bookingCore";
 import { processDualBooking } from "backend/citasManager.web";
 
 const log = logger;
@@ -33,7 +32,7 @@ function _extractBearerToken(request) {
 async function _validateHMACSignature(request, bodyString, traceId) {
   const signature = request.headers["x-mm-signature"] || "";
   const timestamp = request.headers["x-mm-timestamp"] || "";
-  if (!signature || !timestamp) return false;
+  if (!signature || !timestamp) {return false;}
   const now = Math.floor(Date.now() / 1000);
   const reqTimestamp = parseInt(timestamp, 10);
   if (isNaN(reqTimestamp) || Math.abs(now - reqTimestamp) > HMAC_MAX_CLOCK_SKEW_SECONDS) {
@@ -43,7 +42,7 @@ async function _validateHMACSignature(request, bodyString, traceId) {
     log.error("M365 webhook secret lookup failed", { traceId, error: error?.message });
     return "";
   });
-  if (!secret) return false;
+  if (!secret) {return false;}
   const payload = `${timestamp}.${bodyString}`;
   const expectedSignature = hmacSha256Hex(secret, payload);
   return signature.length === expectedSignature.length && timingSafeEqual(signature, expectedSignature);

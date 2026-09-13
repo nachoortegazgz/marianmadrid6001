@@ -20,10 +20,10 @@ let staffCacheTime = 0;
 
 async function _loadStaffCatalog() {
   const now = Date.now();
-  if (staffCache && now - staffCacheTime < STAFF_CACHE_TTL_MS) return staffCache;
+  if (staffCache && now - staffCacheTime < STAFF_CACHE_TTL_MS) {return staffCache;}
   try {
     const res = await wixData.query(MAPA_STAFF_COL).eq("active", true).limit(100).find({ suppressAuth: true });
-    let items = res?.items || [];
+    const items = res?.items || [];
     staffCache = items.map((s) => ({
       ...s,
       resourceId: _safeTrim(s.resourceId),
@@ -46,39 +46,39 @@ export async function getAllStaff() { return await _loadStaffCatalog(); }
 
 export async function findStaff(identifier) {
   const cleanId = _safeTrim(identifier);
-  if (!cleanId) return null;
+  if (!cleanId) {return null;}
   const catalog = await _loadStaffCatalog();
-  if (cleanId.toLowerCase() === "any" || cleanId.toLowerCase() === "all") return null;
+  if (cleanId.toLowerCase() === "any" || cleanId.toLowerCase() === "all") {return null;}
   const byResourceId = catalog.find((s) => s.resourceId === cleanId);
-  if (byResourceId) return byResourceId;
+  if (byResourceId) {return byResourceId;}
   const byMemberId = catalog.find((s) => s.staffMemberId === cleanId);
-  if (byMemberId) return byMemberId;
+  if (byMemberId) {return byMemberId;}
   const byScheduleId = catalog.find((s) => s.scheduleId === cleanId);
-  if (byScheduleId) return byScheduleId;
+  if (byScheduleId) {return byScheduleId;}
   const cleanEmail = _safeEmail(cleanId);
   if (cleanEmail) {
     const byEmail = catalog.find((s) => _safeEmail(s.email) === cleanEmail);
-    if (byEmail) return byEmail;
+    if (byEmail) {return byEmail;}
   }
   const byName = catalog.find((s) => _safeTrim(s.displayName || "").toLowerCase() === cleanId.toLowerCase());
-  if (byName) return byName;
+  if (byName) {return byName;}
   return null;
 }
 
 export async function findStaffByResourceId(resourceId) {
   const cleanId = _safeTrim(resourceId);
-  if (!cleanId || !_looksLikeGuid(cleanId)) return null;
+  if (!cleanId || !_looksLikeGuid(cleanId)) {return null;}
   return await findStaff(cleanId);
 }
 
 export async function getStaffDisplayName(resourceId) {
   const staff = await findStaff(resourceId);
-  if (!staff) return "";
+  if (!staff) {return "";}
   return _safeTrim(staff.displayName || staff.name || "");
 }
 
 export async function getStaffScheduleId(resourceId) {
   const staff = await findStaff(resourceId);
-  if (!staff) return null;
+  if (!staff) {return null;}
   return _safeTrim(staff.scheduleId) || null;
 }

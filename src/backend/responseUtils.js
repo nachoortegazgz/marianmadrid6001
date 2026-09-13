@@ -18,7 +18,7 @@ export class AppError extends Error {
         this.name = "AppError";
         this.code = String(code || "INTERNAL_ERROR");
         this.meta = meta && typeof meta === "object" ? meta : { details: meta };
-        if (Error.captureStackTrace) Error.captureStackTrace(this, AppError);
+        if (Error.captureStackTrace) {Error.captureStackTrace(this, AppError);}
     }
 }
 
@@ -73,7 +73,7 @@ export function toWebMethodResult(actionFn) {
     return async (...args) => {
         try {
             const result = await actionFn(...args);
-            if (result && typeof result === "object" && "status" in result) return result;
+            if (result && typeof result === "object" && "status" in result) {return result;}
             return successResponse(result);
         } catch (err) {
             const code = err?.code || err?.name || "OPERATION_FAILED";
@@ -84,13 +84,13 @@ export function toWebMethodResult(actionFn) {
 }
 
 export function isSuccess(res) {
-    if (!res) return false;
-    if (res === true) return true;
+    if (!res) {return false;}
+    if (res === true) {return true;}
     const rawStatus = res?.status ?? res?.payload?.status ?? res?.data?.status;
     if (typeof rawStatus === "string") {
         const norm = rawStatus.trim().toUpperCase();
-        if (norm === "SUCCESS" || norm === "OK") return true;
+        if (norm === "SUCCESS" || norm === "OK") {return true;}
     }
-    if (rawStatus === 200 || res?.success === true) return true;
+    if (rawStatus === 200 || res?.success === true) {return true;}
     return false;
 }

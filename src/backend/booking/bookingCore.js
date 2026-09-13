@@ -163,7 +163,7 @@ export async function _updateCitaSafe(bookingId, updater, traceId = "no-trace", 
   }
   const currentForUpdater = normalizedMeta === persistedMeta ? current : { ...current, meta: normalizedMeta };
   const updated = await updater(currentForUpdater);
-  if (updated === null || updated === undefined) return current;
+  if (updated === null || updated === undefined) {return current;}
   const record = { ...updated, _id: current._id || updated._id || cleanBookingId };
   return wixData.update(CITAS_COLLECTION, record, { suppressAuth: true });
 }
@@ -330,9 +330,9 @@ export async function _persistBooking(params, traceId = "no-trace") {
   const serviceId = params.serviceId;
   if (!params.bookingId || !serviceId || !params.scheduleId) {
     const missingFields = [];
-    if (!params.bookingId) missingFields.push("bookingId");
-    if (!serviceId) missingFields.push("serviceId");
-    if (!params.scheduleId) missingFields.push("scheduleId");
+    if (!params.bookingId) {missingFields.push("bookingId");}
+    if (!serviceId) {missingFields.push("serviceId");}
+    if (!params.scheduleId) {missingFields.push("scheduleId");}
     const error = createBookingError(ERROR_CODES.INVALID_PAYLOAD, `Missing required fields: ${missingFields.join(", ")}`, { traceId, missingFields });
     log.error(`[bookingCore] ${error.message}`, { traceId });
     throw error;
@@ -396,7 +396,7 @@ export async function _persistBooking(params, traceId = "no-trace") {
 }
 
 export function _normalizeAddons(addons) {
-  if (!addons || !Array.isArray(addons)) return [];
+  if (!addons || !Array.isArray(addons)) {return [];}
   return addons.map((addon) => ({
     id: _safeTrim(addon.id),
     name: _safeTrim(addon.name),
@@ -406,7 +406,7 @@ export function _normalizeAddons(addons) {
 }
 
 export function _sumAddons(addons) {
-  if (!addons || !Array.isArray(addons)) return 0;
+  if (!addons || !Array.isArray(addons)) {return 0;}
   return addons.reduce((sum, addon) => sum + (Number(addon.price) || 0) * (Number(addon.quantity) || 1), 0);
 }
 
@@ -608,7 +608,7 @@ export async function withTimeout(promise, ms) {
 }
 
 export function _extractResourceIdsFromSlot(slot) {
-  if (!slot || typeof slot !== "object") return [];
+  if (!slot || typeof slot !== "object") {return [];}
   const resources = new Set();
   if (slot.resourceId && typeof slot.resourceId === "string") {
     resources.add(slot.resourceId);
@@ -636,7 +636,7 @@ export function _extractResourceIdsFromSlot(slot) {
 }
 
 export async function _rankResourcesByLoad(resourceIds, dateYMD, traceId) {
-  if (!Array.isArray(resourceIds) || resourceIds.length === 0) return [];
+  if (!Array.isArray(resourceIds) || resourceIds.length === 0) {return [];}
   try {
     const loadMap = new Map();
     for (const resId of resourceIds) {
@@ -682,7 +682,7 @@ export async function getCertifiedDualSlotsOptimized(serviceId, resourceId, date
   for (const resId of rankedResources) {
     const resourceSlots = slotsByResource.get(resId) || [];
     const candidates = resourceSlots.filter((s) => !processedSlotIds.has(s.id));
-    if (candidates.length < 2) continue;
+    if (candidates.length < 2) {continue;}
     for (let i = 0; i < candidates.length; i++) {
       const s1 = candidates[i];
       for (let j = i + 1; j < candidates.length; j++) {
@@ -697,12 +697,12 @@ export async function getCertifiedDualSlotsOptimized(serviceId, resourceId, date
           finalPairs.push(pair);
           processedSlotIds.add(s1.id);
           processedSlotIds.add(s2.id);
-          if (finalPairs.length >= 5) break;
+          if (finalPairs.length >= 5) {break;}
         }
       }
-      if (finalPairs.length >= 5) break;
+      if (finalPairs.length >= 5) {break;}
     }
-    if (finalPairs.length >= 5) break;
+    if (finalPairs.length >= 5) {break;}
   }
   const duration = Date.now() - startTime;
   console.log(`[${traceId}] Busqueda completada en ${duration}ms. Pares encontrados: ${finalPairs.length}`);
@@ -716,7 +716,7 @@ export async function getCertifiedDualSlotsOptimized(serviceId, resourceId, date
 }
 
 export function _areSlotsContiguous(s1, s2) {
-  if (!s1.localEndDate || !s2.localStartDate) return false;
+  if (!s1.localEndDate || !s2.localStartDate) {return false;}
   const end1 = new Date(s1.localEndDate).getTime();
   const start2 = new Date(s2.localStartDate).getTime();
   return Math.abs(end1 - start2) <= 60000;

@@ -36,7 +36,7 @@ export class M365Adapter {
       const response = await fetch('https://graph.microsoft.com/v1.0/...', {
         headers: { 'Authorization': `Bearer ${await this.getAccessToken()}` }
       });
-      if (!response.ok) throw new Error('Graph API Error');
+      if (!response.ok) {throw new Error('Graph API Error');}
       // 4. Marcar COMPLETED
       await this.updateStatus(event.id, 'COMPLETED', lockToken);
       logger.info('m365_event_success', { eventId: event.id });

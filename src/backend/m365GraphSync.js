@@ -63,7 +63,7 @@ function _isNonRecoverableError(error) {
 }
 
 function _stableSerialize(value) {
-    if (Array.isArray(value)) return `[${value.map(_stableSerialize).join(",")}]`;
+    if (Array.isArray(value)) {return `[${value.map(_stableSerialize).join(",")}]`;}
     if (value && typeof value === "object") {
         return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${_stableSerialize(value[key])}`).join(",")}}`;
     }
@@ -89,7 +89,7 @@ async function _loadGraphConfig() {
         getSecret(SECRETS.M365_GRAPH_LIST_ID).catch(() => ""),
     ]);
 
-    if (!tenantId || !clientId || !clientSecret || !siteId || !listId) return null;
+    if (!tenantId || !clientId || !clientSecret || !siteId || !listId) {return null;}
     return { tenantId, clientId, clientSecret, siteId, listId };
 }
 
@@ -101,9 +101,9 @@ async function _acquireGraphToken(config) {
         body,
     });
 
-    if (!response?.ok) throw new Error(`M365_GRAPH_TOKEN_FAILED`);
+    if (!response?.ok) {throw new Error(`M365_GRAPH_TOKEN_FAILED`);}
     const data = await response.json().catch(() => null);
-    if (!data?.access_token) throw new Error("M365_GRAPH_TOKEN_INVALID");
+    if (!data?.access_token) {throw new Error("M365_GRAPH_TOKEN_INVALID");}
     return data.access_token;
 }
 
@@ -206,7 +206,7 @@ async function _releaseLock(queueId) {
 }
 
 export async function enqueueM365LedgerRecord(movement, traceId) {
-    if (!_isM365Enabled()) return { status: "PAUSED" };
+    if (!_isM365Enabled()) {return { status: "PAUSED" };}
     
     const payload = {
         eventType: "LEDGER_MOVEMENT",
@@ -245,7 +245,7 @@ export async function enqueueM365LedgerRecord(movement, traceId) {
 
 // [M365-11] PROCESAMIENTO CON BLOQUEO Y ESTADOS
 export async function processM365GraphSyncQueue(options = {}) {
-    if (!_isM365Enabled()) return { status: "PAUSED" };
+    if (!_isM365Enabled()) {return { status: "PAUSED" };}
     
     const traceId = options.traceId || makeTraceId("M365_CRON");
     log.info(`M365_PROCESS_START`, { traceId });
@@ -369,7 +369,7 @@ export async function processM365GraphSyncQueue(options = {}) {
 // [M365-20] FUNCION AUXILIAR PARA OBTENER ESTADO DE COLA
 export async function getQueueStatus(queueId) {
   const item = await wixData.get(QUEUE_COL, queueId, { suppressAuth: true }).catch(() => null);
-  if (!item) return { status: "NOT_FOUND" };
+  if (!item) {return { status: "NOT_FOUND" };}
   
   return {
     status: item.status,

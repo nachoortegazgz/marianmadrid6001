@@ -162,7 +162,7 @@ export const getEstadoJornada = webMethod(Permissions.SiteMember, async (options
     const member = await currentMember.getMember({ fieldsets: ["FULL"] });
     const email = _resolveMemberEmail(member);
     const staff = await findStaff(email);
-    if (!staff) throw new Error("User is not registered as staff");
+    if (!staff) {throw new Error("User is not registered as staff");}
     const hoy = getMadridLocalStringNoZ(new Date()).slice(0, 10);
     const fichajesRes = await wixData.query(REGISTRO_COL)
       .eq("resourceId", staff.resourceId)
@@ -254,7 +254,7 @@ export const getEstadoJornada = webMethod(Permissions.SiteMember, async (options
        throw new Error("resourceId, fechaInicio, and fechaFin are required");
      }
      let allFichajes = [];
-     let query = wixData.query(REGISTRO_COL)
+     const query = wixData.query(REGISTRO_COL)
        .eq("resourceId", resourceId)
        .ge("recordedAt", new Date(fechaInicio))
        .le("recordedAt", new Date(fechaFin))
@@ -329,7 +329,7 @@ export const getEstadoJornada = webMethod(Permissions.SiteMember, async (options
      const member = await currentMember.getMember({ fieldsets: ["FULL"] });
      const email = _resolveMemberEmail(member);
      const staff = await findStaff(email);
-     if (!staff) throw new Error("User is not registered as staff");
+     if (!staff) {throw new Error("User is not registered as staff");}
      const { limit = 50, offset = 0 } = options;
      const safeLimit = Math.min(Number(limit) || 50, 200);
      const res = await wixData.query(REGISTRO_COL)
@@ -370,7 +370,7 @@ export const getEstadoJornada = webMethod(Permissions.SiteMember, async (options
        throw new Error(`Invalid clock type: ${finalTipo}`);
      }
      const staff = await findStaff(resourceId);
-     if (!staff) throw new Error("Staff not found for resourceId");
+     if (!staff) {throw new Error("Staff not found for resourceId");}
      const adminMember = await currentMember.getMember({ fieldsets: ["FULL"] });
      const adminEmail = adminMember?.loginEmail || "unknown";
      const dateObj = new Date(finalFecha);
@@ -399,7 +399,7 @@ export const getEstadoJornada = webMethod(Permissions.SiteMember, async (options
      const member = await currentMember.getMember({ fieldsets: ["FULL"] });
      const email = _resolveMemberEmail(member);
      const staff = await findStaff(email);
-     if (!staff) throw new Error("User is not registered as staff");
+     if (!staff) {throw new Error("User is not registered as staff");}
      const now = new Date();
      const mesActual = getMadridLocalStringNoZ(now).slice(0, 7);
      const fichajesRes = await wixData.query(REGISTRO_COL)
@@ -465,7 +465,7 @@ export const getEstadoJornada = webMethod(Permissions.SiteMember, async (options
      throw new Error("RANGO_INVALIDO: La hora de inicio debe ser anterior a la de fin.");
    }
    for (const item of existing.items || []) {
-     if (excludeId && item._id === excludeId) continue;
+     if (excludeId && item._id === excludeId) {continue;}
      const exStart = toMinutes(item.startTime);
      const exEnd = toMinutes(item.endTime);
      if (newStart < exEnd && newEnd > exStart) {

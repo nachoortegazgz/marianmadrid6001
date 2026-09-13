@@ -293,10 +293,10 @@
      }
      const amount = Number(movimiento.accountingAmount) || 0;
      const method = _safeTrim(movimiento.paymentMethod).toUpperCase();
-     if (method === FORMA_PAGO.EFECTIVO) caja.cashBalance = _roundMoney((caja.cashBalance || 0) + amount);
-     else if (method === FORMA_PAGO.TARJETA) caja.cardBalance = _roundMoney((caja.cardBalance || 0) + amount);
-     else if (method === FORMA_PAGO.BIZUM) caja.bizumBalance = _roundMoney((caja.bizumBalance || 0) + amount);
-     else if (method === FORMA_PAGO.ONLINE) caja.onlineBalance = _roundMoney((caja.onlineBalance || 0) + amount);
+     if (method === FORMA_PAGO.EFECTIVO) {caja.cashBalance = _roundMoney((caja.cashBalance || 0) + amount);}
+     else if (method === FORMA_PAGO.TARJETA) {caja.cardBalance = _roundMoney((caja.cardBalance || 0) + amount);}
+     else if (method === FORMA_PAGO.BIZUM) {caja.bizumBalance = _roundMoney((caja.bizumBalance || 0) + amount);}
+     else if (method === FORMA_PAGO.ONLINE) {caja.onlineBalance = _roundMoney((caja.onlineBalance || 0) + amount);}
      caja.totalBalance = _roundMoney((caja.cashBalance || 0) + (caja.cardBalance || 0) + (caja.bizumBalance || 0) + (caja.onlineBalance || 0));
      caja.totalOperations = Number(caja.totalOperations || 0) + 1;
      caja.lastActivityAt = new Date();
@@ -472,7 +472,6 @@
          costCenterId: null,
          operationalManagerId: movimiento.resourceId || null,
          externalReference: null,
-         lineHash: `${journalEntryId}_L${String(lineNum - 1).padStart(3, "0")}`,
          traceId,
          operationDate: new Date(movimiento.operationDate),
          registeredAt: new Date(),
@@ -764,7 +763,7 @@
      }
      // Fetch all movements for the day
      let allMovements = [];
-     let query = wixData.query(COLLECTIONS.MOVIMIENTOS_CAJA)
+     const query = wixData.query(COLLECTIONS.MOVIMIENTOS_CAJA)
        .eq("operationDate", cleanDiaKey)
        .ascending("registeredAt")
        .limit(LEDGER_PAGE_SIZE);
@@ -801,7 +800,7 @@
      const taxTypeBreakdown = {};
      for (const m of allMovements) {
        const rate = String(Number(m.taxRate) || 0);
-       if (!taxTypeBreakdown[rate]) taxTypeBreakdown[rate] = { taxableAmount: 0, taxAmount: 0, total: 0, operations: 0 };
+       if (!taxTypeBreakdown[rate]) {taxTypeBreakdown[rate] = { taxableAmount: 0, taxAmount: 0, total: 0, operations: 0 };}
        taxTypeBreakdown[rate].taxableAmount = _roundMoney(taxTypeBreakdown[rate].taxableAmount + Number(m.taxableAmount || 0));
        taxTypeBreakdown[rate].taxAmount = _roundMoney(taxTypeBreakdown[rate].taxAmount + Number(m.taxAmount || 0));
        taxTypeBreakdown[rate].total = _roundMoney(taxTypeBreakdown[rate].total + Number(m.accountingAmount || 0));

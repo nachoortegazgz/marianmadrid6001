@@ -31,7 +31,7 @@
  function _getQuarterMonths(year, quarter) {
    const y = Number(year);
    const q = Number(quarter);
-   if (!Number.isFinite(y) || !Number.isFinite(q) || q < 1 || q > 4) return [];
+   if (!Number.isFinite(y) || !Number.isFinite(q) || q < 1 || q > 4) {return [];}
    const monthMap = {
      1: ["01", "02", "03"],
      2: ["04", "05", "06"],
@@ -122,7 +122,7 @@
  async function _fetchQuarterMovements(months, options = {}) {
    const { traceId = makeTraceId("fiscal-fetch"), limit = MAX_PAGES, pageSize = CHUNK_PAGE_SIZE } = options;
    let allItems = [];
-   let query = wixData.query(COLLECTIONS.MOVIMIENTOS_CAJA)
+   const query = wixData.query(COLLECTIONS.MOVIMIENTOS_CAJA)
      .hasSome("fiscalPeriod", months)
      .ascending("sequenceNumber")
      .limit(pageSize);
@@ -131,7 +131,7 @@
      CMS_TIMEOUT_MS,
      "fetchQuarterMovements:p1"
    );
-   if (res?.items) allItems = allItems.concat(res.items);
+   if (res?.items) {allItems = allItems.concat(res.items);}
    let page = 2;
    let reachedMaxPages = false;
    while (res && res.hasNext() && page <= limit) {
@@ -140,7 +140,7 @@
        CMS_TIMEOUT_MS,
        `fetchQuarterMovements:p${page}`
      );
-     if (res?.items) allItems = allItems.concat(res.items);
+     if (res?.items) {allItems = allItems.concat(res.items);}
      page++;
    }
    if (page > limit && res && res.hasNext()) {
@@ -235,7 +235,7 @@
      return { status: "ERROR", data: null, error: { code: "INVALID_PARAMS", message: "Could not resolve quarter months." } };
    }
    const fetchResult = await _fetchQuarterMovements(months, { traceId });
-   let libroFilas = [];
+   const libroFilas = [];
    let orderIndex = 1;
    for (const m of fetchResult.items) {
      const accountingAmount = Number(m.accountingAmount || 0);

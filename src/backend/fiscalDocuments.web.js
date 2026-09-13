@@ -34,7 +34,7 @@
  }
 
  function _buildCsvFromInvoices(invoices) {
-   if (!Array.isArray(invoices) || invoices.length === 0) return "";
+   if (!Array.isArray(invoices) || invoices.length === 0) {return "";}
    const header = "Numero;Fecha;Tipo;Base;Cuota;Total;FormaPago;Hash\n";
    const rows = invoices.map((inv) =>
      `"${_safeTrim(inv.invoiceNumber || inv.numTicketFactura)}";` +
@@ -50,7 +50,7 @@
  }
 
  function _buildSummaryText(summary) {
-   if (!summary) return "Sin datos de resumen.";
+   if (!summary) {return "Sin datos de resumen.";}
    const lines = [];
    lines.push(`Ejercicio: ${summary.ejercicio || "N/A"}`);
    lines.push(`Trimestre: ${summary.trimestre || "N/A"}`);
@@ -149,7 +149,7 @@
      const year = Number(period.year);
      const quarter = Number(period.quarter);
      let q = wixData.query(DOCS_COL).eq("closingType", "PAQUETE_GESTORIA");
-     if (year && Number.isFinite(year)) q = q.eq("fiscalYear", year);
+     if (year && Number.isFinite(year)) {q = q.eq("fiscalYear", year);}
      if (quarter && Number.isFinite(quarter) && quarter >= 1 && quarter <= 4) {
        q = q.startsWith("inventoryClosingId", `DOC_GESTORIA_${year}_T${quarter}`);
      }
@@ -292,7 +292,7 @@
            break;
          }
        } catch (emailErr) {
-         if (attempt === MAX_EMAIL_SEND_ATTEMPTS) throw emailErr;
+         if (attempt === MAX_EMAIL_SEND_ATTEMPTS) {throw emailErr;}
        }
      }
      return { status: "SUCCESS", data: { sent, recipient, documentId }, error: null };

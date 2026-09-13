@@ -32,7 +32,7 @@ export function timingSafeEqual(a, b) {
 try {
 const bufA = Buffer.from(String(a || ""), "utf8");
 const bufB = Buffer.from(String(b || ""), "utf8");
-if (bufA.length !== bufB.length) return false;
+if (bufA.length !== bufB.length) {return false;}
 return nodeTimingSafeEqual(bufA, bufB);
 } catch (_) {
 return false;
@@ -87,9 +87,9 @@ export async function verifyJWT(token, traceId) {
 const activeTraceId = traceId || makeTraceId("jwt-verify");
 try {
 const cleanToken = _safeTrim(token);
-if (!cleanToken) return null;
+if (!cleanToken) {return null;}
 const parts = cleanToken.split(".");
-if (parts.length !== 3) return null;
+if (parts.length !== 3) {return null;}
 const secretKey = await getSecret(SECRETS.AUTH_JWT_KEY);
 if (!secretKey) {
 log.error("AUTH_JWT_KEY missing in Secrets Manager", { traceId: activeTraceId });
@@ -101,7 +101,7 @@ if (!timingSafeEqual(parts[2], expectedSignature)) {
 return null;
 }
 const payloadJson = _base64UrlDecode(parts[1]);
-if (!payloadJson) return null;
+if (!payloadJson) {return null;}
 const payload = JSON.parse(payloadJson);
 const now = Math.floor(Date.now() / 1000);
 if (payload.exp && payload.exp < now) {
